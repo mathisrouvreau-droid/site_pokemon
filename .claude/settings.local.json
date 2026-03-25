@@ -29,7 +29,16 @@
       "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Snorlax&pagination:itemsPerPage=5\")",
       "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Dracaufeu&pagination:itemsPerPage=5\")",
       "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Pikachu&pagination:itemsPerPage=3\")",
-      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Eevee&pagination:itemsPerPage=3\")"
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Eevee&pagination:itemsPerPage=3\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?pagination:itemsPerPage=20\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?pagination:itemsPerPage=200\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:リザードン&pagination:itemsPerPage=10\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Charizard&pagination:itemsPerPage=10\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?pagination:itemsPerPage=2000\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=%E3%83%AA%E3%82%B6%E3%83%BC%E3%83%89%E3%83%B3&pagination:itemsPerPage=10\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=リザードン&pagination:itemsPerPage=10\")",
+      "Bash(curl -v -s \"https://api.tcgdex.net/v2/ja/cards?name=like:%E3%83%AA%E3%82%B6%E3%83%BC%E3%83%89%E3%83%B3&pagination:itemsPerPage=5\")",
+      "Bash(node:*)"
     ]
   }
 }

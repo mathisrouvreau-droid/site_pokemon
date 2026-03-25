@@ -423,51 +423,79 @@ async function searchApi() {
   if (!query) return;
 
   const results = document.getElementById('apiResults');
-  results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours dans toutes les langues...</p>';
+  results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours (FR + JA)...</p>';
 
-  // Step 1: Search FR and EN first to find the name in both languages
+  // Step 1: Search FR and EN in parallel
   const [cardsFR, cardsEN] = await Promise.all([
     fetchCardsFromLang('fr', query),
     fetchCardsFromLang('en', query),
   ]);
 
-  // Try to find the equivalent name in the other language for cross-search
-  const searchNames = new Set([query.toLowerCase()]);
-  if (cardsFR.length > 0) {
-    // We have FR results — find EN equivalent via matching IDs
-    for (const frCard of cardsFR.slice(0, 3)) {
-      const enMatch = cardsEN.find(e => e.id === frCard.id);
-      if (enMatch && enMatch.name) searchNames.add(enMatch.name.toLowerCase());
-    }
+  // Step 2: Collect all unique IDs found in FR/EN
+  const foundIds = new Set();
+  for (const c of [...cardsFR, ...cardsEN]) {
+    if (c.id) foundIds.add(c.id);
   }
-  if (cardsEN.length > 0) {
-    for (const enCard of cardsEN.slice(0, 3)) {
-      if (enCard.name) searchNames.add(enCard.name.toLowerCase());
+
+  // Step 3: For each ID found, try to fetch the JA version
+  // (JA cards often have different names so text search doesn't work)
+  const jaCards = [];
+  const jaPromises = [];
+  for (const id of [...foundIds].slice(0, 30)) { // limit to 30 to avoid too many requests
+    jaPromises.push(
+      fetch(`https://api.tcgdex.net/v2/ja/cards/${id}`)
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+    );
+  }
+  const jaResults = await Promise.all(jaPromises);
+  for (const card of jaResults) {
+    if (card && card.id && !isTCGPocketCard(card)) {
+      jaCards.push({ ...card, _lang: 'ja' });
     }
   }
 
-  // Step 2: Search remaining languages with all known name variants
-  const otherLangs = API_LANGS.filter(l => l !== 'fr' && l !== 'en');
-  const otherSearches = [];
-  for (const lang of otherLangs) {
-    for (const name of searchNames) {
-      otherSearches.push(fetchCardsFromLang(lang, name));
-    }
-  }
-  const otherResults = await Promise.all(otherSearches);
+  // Also search JA directly by name (for JA-exclusive cards with english names)
+  const jaByName = await fetchCardsFromLang('ja', query);
 
-  // Step 3: Merge all results, deduplicate by card ID, FR priority
+  // Step 4: Merge all — FR first, then JA exclusives, then EN
   const cardMap = new Map();
-  // FR first
-  for (const c of cardsFR) { if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c); }
-  // EN second
-  for (const c of cardsEN) { if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c); }
-  // Others
-  for (const batch of otherResults) {
-    for (const c of batch) { if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c); }
+
+  // FR cards first (priority)
+  for (const c of cardsFR) {
+    if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c);
+  }
+
+  // JA cards that exist (found by ID) — mark them but don't override FR
+  // Instead, store JA versions alongside
+  const jaMap = new Map();
+  for (const c of jaCards) {
+    if (c.id) jaMap.set(c.id, c);
+  }
+
+  // JA-only cards (not in FR/EN) — from name search
+  for (const c of jaByName) {
+    if (c.id && !cardMap.has(c.id)) {
+      cardMap.set(c.id, c);
+    }
+  }
+
+  // EN cards (for those not in FR)
+  for (const c of cardsEN) {
+    if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c);
+  }
+
+  // Add JA-exclusive cards found by ID that aren't already in the map
+  for (const c of jaCards) {
+    if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c);
   }
 
   const allCards = Array.from(cardMap.values());
+
+  // Tag cards that have a JA version available
+  for (const c of allCards) {
+    if (jaMap.has(c.id)) c._hasJa = true;
+  }
 
   if (allCards.length === 0) {
     results.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat pour "${query}". Essayez en français, anglais ou japonais.</p>`;
@@ -479,18 +507,20 @@ async function searchApi() {
     const setName = c.set?.name || '';
     const rarity = c.rarity || '';
     const safeId = (c.id || '').replace(/'/g, "\\'");
-    const langFlag = { fr:'🇫🇷', en:'🇬🇧', ja:'🇯🇵', es:'🇪🇸', it:'🇮🇹', pt:'🇧🇷', de:'🇩🇪' }[c._lang] || '';
+    const langFlag = { fr:'🇫🇷', en:'🇬🇧', ja:'🇯🇵' }[c._lang] || '🇫🇷';
+    const jaTag = c._hasJa ? '<span style="font-size:0.55rem;background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 5px;border-radius:4px;margin-left:2px;">JA</span>' : '';
 
     return `
-      <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}', '${c._lang}')">
+      <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}', '${c._lang || 'fr'}')">
         ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);padding:4px;text-align:center;">${c.name || '?'}</div>`}
-        <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">${langFlag}</span></div>
+        <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">${langFlag}</span>${jaTag}</div>
         <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
         <div class="check">✓</div>
       </div>`;
   }).join('');
 
-  results.insertAdjacentHTML('beforeend', `<p style="font-size:0.7rem;color:var(--text-muted);padding:8px 4px;grid-column:1/-1;">${allCards.length} résultat(s) trouvé(s) dans ${API_LANGS.length} langues</p>`);
+  const jaCount = allCards.filter(c => c._lang === 'ja' || c._hasJa).length;
+  results.insertAdjacentHTML('beforeend', `<p style="font-size:0.7rem;color:var(--text-muted);padding:8px 4px;grid-column:1/-1;">${allCards.length} résultat(s) · dont ${jaCount} avec version JA</p>`);
 }
 
 async function selectApiCard(el, id, sourceLang = 'fr') {
