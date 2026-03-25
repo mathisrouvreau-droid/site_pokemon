@@ -183,34 +183,58 @@
     let currentCategory = 'all';
     let currentSealedType = 'all';
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       injectFooter();
-      buildFilters();
+      await buildFilters();
       attachFilterListeners();
       switchCategory('all');
     });
 
     // ─── BUILD DYNAMIC FILTERS ───
-    function buildFilters() {
-      const listings = getAdminListings();
-      const uniqueSets = [...new Set(listings.map(l => l.set).filter(Boolean))];
-      const uniqueRarities = [...new Set(listings.filter(l => (l.type || 'Carte') === 'Carte').map(l => l.rarity).filter(Boolean))];
+    async function buildFilters() {
+      // Fetch ALL sets from TCGdex API
+      const apiSets = await TCGdex.getSets();
+      const allSets = [];
 
-      // Populate all set filters
+      if (apiSets && apiSets.length) {
+        // Group sets by series for better organization
+        apiSets.reverse().forEach(s => {
+          if (s.name) allSets.push(s.name);
+        });
+      }
+
+      // Also add any custom sets from admin listings not in API
+      const listings = getAdminListings();
+      const listingSets = [...new Set(listings.map(l => l.set).filter(Boolean))];
+      listingSets.forEach(s => {
+        if (!allSets.includes(s)) allSets.unshift(s);
+      });
+
+      // Populate all set filter dropdowns
       ['allSetFilter', 'cardsSetFilter', 'sealedSetFilter'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
-        uniqueSets.forEach(s => {
+        allSets.forEach(s => {
           const opt = document.createElement('option');
-          opt.value = s; opt.textContent = s;
+          opt.value = s;
+          opt.textContent = s;
           sel.appendChild(opt);
         });
       });
 
-      // Cards rarity filter
+      // Rarity filter — from admin listings + common rarities
+      const defaultRarities = [
+        'Commune', 'Non Commune', 'Rare', 'Holo Rare', 'Double Rare',
+        'Ultra Rare', 'Illustration Rare', 'Art Rare', 'Special Art Rare',
+        'Secret Rare', 'Hyper Rare', 'Shiny Rare', 'Amazing Rare',
+        'ACE SPEC Rare'
+      ];
+      const listingRarities = [...new Set(listings.filter(l => (l.type || 'Carte') === 'Carte').map(l => l.rarity).filter(Boolean))];
+      const allRarities = [...new Set([...defaultRarities, ...listingRarities])];
+
       const rarSel = document.getElementById('cardsRarityFilter');
       if (rarSel) {
-        uniqueRarities.forEach(r => {
+        allRarities.forEach(r => {
           const opt = document.createElement('option');
           opt.value = r; opt.textContent = r;
           rarSel.appendChild(opt);
