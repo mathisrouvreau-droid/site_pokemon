@@ -52,13 +52,23 @@
           <h2 class="section-title">Cartes à l'unité</h2>
         </div>
         <div class="filter-bar" id="filterBar">
+          <select class="filter-select" id="typeFilter">
+            <option value="all">Tous les types</option>
+            <option value="Carte">Cartes</option>
+            <option value="Booster">Boosters</option>
+            <option value="ETB">ETB</option>
+            <option value="Coffret">Coffrets</option>
+            <option value="Display">Displays</option>
+            <option value="Bundle">Bundles</option>
+            <option value="Autre">Autre</option>
+          </select>
           <select class="filter-select" id="setFilter">
             <option value="all">Tous les sets</option>
           </select>
           <select class="filter-select" id="rarityFilter">
             <option value="all">Toutes raretés</option>
           </select>
-          <input type="text" class="filter-select" id="searchInput" placeholder="Rechercher une carte..." style="flex:1;min-width:200px;">
+          <input type="text" class="filter-select" id="searchInput" placeholder="Rechercher un produit..." style="flex:1;min-width:200px;">
           <button class="filter-btn active" id="searchBtn" onclick="loadAllCards()">Rechercher</button>
         </div>
         <div id="paginationTop" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
@@ -101,6 +111,7 @@
       });
 
       // Event listeners
+      document.getElementById('typeFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
       document.getElementById('setFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
       document.getElementById('rarityFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
       document.getElementById('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { currentPage = 1; loadAllCards(); } });
@@ -141,6 +152,12 @@
     function loadAllCards() {
       const grid = document.getElementById('allcardsGrid');
       let listings = getAdminListings();
+
+      // Apply type filter
+      const typeVal = document.getElementById('typeFilter').value;
+      if (typeVal !== 'all') {
+        listings = listings.filter(l => (l.type || 'Carte') === typeVal);
+      }
 
       // Apply search filter
       const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();

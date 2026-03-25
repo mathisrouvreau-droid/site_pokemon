@@ -127,18 +127,18 @@ function renderCardsTab(container) {
 
   container.innerHTML = `
     <div class="admin-header">
-      <h1>Cartes en vente</h1>
+      <h1>Produits en vente</h1>
       <div class="admin-header-actions">
         <button class="holo-btn-filled" onclick="openCardModal()" style="padding:10px 24px;font-size:0.85rem;">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-          Ajouter une carte
+          Ajouter un produit
         </button>
       </div>
     </div>
 
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-label">Cartes en vente</div>
+        <div class="stat-label">Produits en vente</div>
         <div class="stat-value">${listings.length}</div>
       </div>
       <div class="stat-card">
@@ -154,15 +154,16 @@ function renderCardsTab(container) {
     ${listings.length === 0 ? `
       <div class="empty-state">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
-        <p>Aucune carte en vente pour le moment.</p>
-        <button class="holo-btn-filled" onclick="openCardModal()" style="padding:10px 24px;font-size:0.85rem;">Ajouter ma première carte</button>
+        <p>Aucun produit en vente pour le moment.</p>
+        <button class="holo-btn-filled" onclick="openCardModal()" style="padding:10px 24px;font-size:0.85rem;">Ajouter mon premier produit</button>
       </div>
     ` : `
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Carte</th>
+              <th>Produit</th>
+              <th>Type</th>
               <th>État</th>
               <th>Prix</th>
               <th>Date</th>
@@ -170,7 +171,11 @@ function renderCardsTab(container) {
             </tr>
           </thead>
           <tbody>
-            ${listings.map((l, i) => `
+            ${listings.map((l, i) => {
+              const typeLabel = l.type || 'Carte';
+              const typeColors = { 'Carte':'var(--holo-1)', 'Booster':'#f97316', 'ETB':'#a855f7', 'Coffret':'#22d3ee', 'Display':'#ec4899', 'Bundle':'#4ade80', 'Autre':'var(--text-muted)' };
+              const typeColor = typeColors[typeLabel] || 'var(--text-muted)';
+              return `
               <tr>
                 <td>
                   <div class="card-info">
@@ -181,6 +186,7 @@ function renderCardsTab(container) {
                     </div>
                   </div>
                 </td>
+                <td><span style="font-size:0.75rem;font-weight:600;color:${typeColor};">${typeLabel}</span></td>
                 <td><span class="condition-badge condition-${l.conditionClass || 'nm'}">${l.condition}</span></td>
                 <td><strong>${parseFloat(l.price).toFixed(2)} €</strong></td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${l.date || '—'}</td>
@@ -190,8 +196,8 @@ function renderCardsTab(container) {
                     <button class="table-btn danger" onclick="deleteCard(${i})">Supprimer</button>
                   </div>
                 </td>
-              </tr>
-            `).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -220,40 +226,57 @@ function openCardModal(index = null) {
   overlay.innerHTML = `
     <div class="admin-modal">
       <h2>
-        ${listing ? 'Modifier la carte' : 'Ajouter une carte'}
+        ${listing ? 'Modifier le produit' : 'Ajouter un produit'}
         <button onclick="closeCardModal()">✕</button>
       </h2>
 
-      <!-- Tab switch: API or custom -->
-      <div style="display:flex;gap:8px;margin-bottom:24px;">
-        <button class="filter-btn active" id="tabApi" onclick="switchModalTab('api')">Recherche API</button>
-        <button class="filter-btn" id="tabCustom" onclick="switchModalTab('custom')">Image personnalisée</button>
-      </div>
-
-      <!-- API search -->
-      <div id="modalApiSection">
-        <div class="api-search-row">
-          <input type="text" class="form-input" id="apiSearchInput" placeholder="Rechercher une carte (ex: Dracaufeu)..." value="${listing?.apiId ? listing.name : ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();searchApi();}">
-          <button class="holo-btn-filled" style="padding:10px 20px;font-size:0.85rem;white-space:nowrap;" onclick="searchApi()">Chercher</button>
-        </div>
-        <div class="api-search-results" id="apiResults"></div>
-        <div id="selectedCardPreview" style="display:none;margin-bottom:20px;"></div>
-      </div>
-
-      <!-- Custom image upload -->
-      <div id="modalCustomSection" style="display:none;">
-        <div id="customUploadZone" class="image-upload-area">
-          <div id="customUploadContent">
-            ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt="" style="max-height:180px;margin:0 auto;border-radius:8px;"><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
-          </div>
-        </div>
-      </div>
-
-      <!-- Card form -->
+      <!-- Product type selector -->
       <form class="admin-form" onsubmit="return false;">
         <div class="form-group">
-          <label class="form-label">Nom de la carte *</label>
-          <input type="text" class="form-input" id="modalCardName" placeholder="Nom de la carte" value="${listing?.name || ''}">
+          <label class="form-label">Type de produit *</label>
+          <select class="form-select" id="modalProductType" onchange="onProductTypeChange()">
+            <option value="Carte" ${(!listing || listing.type === 'Carte') ? 'selected' : ''}>Carte à l'unité</option>
+            <option value="Booster" ${listing?.type === 'Booster' ? 'selected' : ''}>Booster</option>
+            <option value="ETB" ${listing?.type === 'ETB' ? 'selected' : ''}>ETB (Elite Trainer Box)</option>
+            <option value="Coffret" ${listing?.type === 'Coffret' ? 'selected' : ''}>Coffret</option>
+            <option value="Display" ${listing?.type === 'Display' ? 'selected' : ''}>Display</option>
+            <option value="Bundle" ${listing?.type === 'Bundle' ? 'selected' : ''}>Bundle / Lot</option>
+            <option value="Autre" ${listing?.type === 'Autre' ? 'selected' : ''}>Autre</option>
+          </select>
+        </div>
+
+        <!-- Image source: API (cards only) or custom upload -->
+        <div id="imageSourceSection">
+          <!-- Tabs shown only for cards -->
+          <div id="imageTabs" style="display:flex;gap:8px;margin-bottom:16px;">
+            <button class="filter-btn active" id="tabApi" onclick="switchModalTab('api')">Recherche API</button>
+            <button class="filter-btn" id="tabCustom" onclick="switchModalTab('custom')">Image personnalisée</button>
+          </div>
+
+          <!-- API search (cards only) -->
+          <div id="modalApiSection">
+            <div class="api-search-row">
+              <input type="text" class="form-input" id="apiSearchInput" placeholder="Rechercher une carte (ex: Dracaufeu)..." value="${listing?.apiId ? listing.name : ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();searchApi();}">
+              <button class="holo-btn-filled" style="padding:10px 20px;font-size:0.85rem;white-space:nowrap;" onclick="searchApi()">Chercher</button>
+            </div>
+            <div class="api-search-results" id="apiResults"></div>
+            <div id="selectedCardPreview" style="display:none;margin-bottom:20px;"></div>
+          </div>
+
+          <!-- Custom image upload (always available) -->
+          <div id="modalCustomSection" style="display:none;">
+            <div id="customUploadZone" class="image-upload-area">
+              <div id="customUploadContent">
+                ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt="" style="max-height:180px;margin:0 auto;border-radius:8px;"><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Product details -->
+        <div class="form-group">
+          <label class="form-label">Nom du produit *</label>
+          <input type="text" class="form-input" id="modalCardName" placeholder="Ex: Dracaufeu VMAX Alt Art" value="${listing?.name || ''}">
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -264,6 +287,7 @@ function openCardModal(index = null) {
             <label class="form-label">État *</label>
             <select class="form-select" id="modalCardCondition">
               <option value="" disabled ${!listing ? 'selected' : ''}>Choisir</option>
+              <option value="Neuf" ${listing?.condition === 'Neuf' ? 'selected' : ''}>Neuf / Scellé</option>
               <option value="Mint" ${listing?.condition === 'Mint' ? 'selected' : ''}>Mint</option>
               <option value="Near Mint" ${listing?.condition === 'Near Mint' ? 'selected' : ''}>Near Mint</option>
               <option value="Excellent" ${listing?.condition === 'Excellent' ? 'selected' : ''}>Excellent</option>
@@ -277,9 +301,13 @@ function openCardModal(index = null) {
           <label class="form-label">Set / Extension</label>
           <input type="text" class="form-input" id="modalCardSet" placeholder="Ex: Écarlate & Violet" value="${listing?.set || ''}">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="rarityGroup">
           <label class="form-label">Rareté</label>
           <input type="text" class="form-input" id="modalCardRarity" placeholder="Ex: Ultra Rare" value="${listing?.rarity || ''}">
+        </div>
+        <div class="form-group" id="descriptionGroup">
+          <label class="form-label">Description</label>
+          <textarea class="form-input" id="modalCardDesc" placeholder="Détails supplémentaires..." style="min-height:80px;resize:vertical;">${listing?.description || ''}</textarea>
         </div>
         <button class="admin-save-btn" onclick="saveCard()">
           ${listing ? 'Enregistrer les modifications' : 'Mettre en vente'}
@@ -293,6 +321,9 @@ function openCardModal(index = null) {
 
   // Init custom image upload listener
   initCustomUpload();
+
+  // Configure form based on product type
+  onProductTypeChange();
 
   // If editing an API card, preselect
   if (listing?.apiId) {
@@ -319,6 +350,46 @@ function switchModalTab(tab) {
   document.getElementById('modalCustomSection').style.display = tab === 'custom' ? '' : 'none';
   document.getElementById('tabApi').classList.toggle('active', tab === 'api');
   document.getElementById('tabCustom').classList.toggle('active', tab === 'custom');
+}
+
+// ─── Product type change: adapt form fields ───
+function onProductTypeChange() {
+  const type = document.getElementById('modalProductType').value;
+  const isCard = (type === 'Carte');
+  const imageTabs = document.getElementById('imageTabs');
+  const rarityGroup = document.getElementById('rarityGroup');
+
+  // API search only available for cards
+  if (isCard) {
+    imageTabs.style.display = 'flex';
+    rarityGroup.style.display = '';
+    // Default to API tab
+    switchModalTab('api');
+  } else {
+    imageTabs.style.display = 'none';
+    rarityGroup.style.display = 'none';
+    // Force custom upload for non-card products
+    switchModalTab('custom');
+  }
+
+  // Update placeholders
+  const nameInput = document.getElementById('modalCardName');
+  const placeholders = {
+    'Carte': 'Ex: Dracaufeu VMAX Alt Art',
+    'Booster': 'Ex: Booster Écarlate & Violet - Flammes Obsidiennes',
+    'ETB': 'Ex: ETB Écarlate & Violet - 151',
+    'Coffret': 'Ex: Coffret Collection Premium Rayquaza',
+    'Display': 'Ex: Display 36 Boosters Évolutions à Paldea',
+    'Bundle': 'Ex: Lot 10 boosters + promos',
+    'Autre': 'Nom du produit',
+  };
+  nameInput.placeholder = placeholders[type] || 'Nom du produit';
+
+  // For sealed products, default condition to "Neuf"
+  if (!isCard) {
+    const condSelect = document.getElementById('modalCardCondition');
+    if (!condSelect.value) condSelect.value = 'Neuf';
+  }
 }
 
 // ─── API SEARCH ───
@@ -484,13 +555,15 @@ function initCustomUpload() {
 
 // ─── SAVE CARD ───
 function saveCard() {
+  const type = document.getElementById('modalProductType').value;
   const name = document.getElementById('modalCardName').value.trim();
   const price = document.getElementById('modalCardPrice').value;
   const condition = document.getElementById('modalCardCondition').value;
   const set = document.getElementById('modalCardSet').value.trim();
-  const rarity = document.getElementById('modalCardRarity').value.trim();
+  const rarity = document.getElementById('modalCardRarity')?.value.trim() || '';
+  const description = document.getElementById('modalCardDesc')?.value.trim() || '';
 
-  if (!name) { alert('Veuillez entrer le nom de la carte.'); return; }
+  if (!name) { alert('Veuillez entrer le nom du produit.'); return; }
   if (!price || parseFloat(price) <= 0) { alert('Veuillez entrer un prix valide.'); return; }
   if (!condition) { alert('Veuillez sélectionner l\'état.'); return; }
 
@@ -505,14 +578,14 @@ function saveCard() {
   }
 
   const conditionClassMap = {
-    'Mint': 'mint', 'Near Mint': 'nm', 'Excellent': 'ex',
+    'Neuf': 'mint', 'Mint': 'mint', 'Near Mint': 'nm', 'Excellent': 'ex',
     'Good': 'good', 'Played': 'played', 'Poor': 'played'
   };
 
   const listing = {
-    name, price: parseFloat(price), condition,
+    type, name, price: parseFloat(price), condition,
     conditionClass: conditionClassMap[condition] || 'nm',
-    set, rarity, image, apiId,
+    set, rarity, description, image, apiId,
     date: new Date().toLocaleDateString('fr-FR'),
   };
 

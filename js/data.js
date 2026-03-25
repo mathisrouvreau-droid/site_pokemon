@@ -138,16 +138,26 @@ const TCGdex = {
 window._shopListings = [];
 
 function buildListingHTML(listing, index) {
-  const condClassMap = { 'Mint':'condition-mint','Near Mint':'condition-nm','Excellent':'condition-ex','Good':'condition-good','Played':'condition-played','Poor':'condition-played' };
-  const cc = condClassMap[listing.condition] || 'condition-nm';
+  const condClassMap = { 'Neuf':'mint', 'Mint':'mint','Near Mint':'nm','Excellent':'ex','Good':'good','Played':'played','Poor':'played' };
+  const cc = condClassMap[listing.condition] || 'nm';
+  const type = listing.type || 'Carte';
+  const isCard = (type === 'Carte');
+
+  // Type badge colors
+  const typeColors = { 'Carte':'var(--holo-1)', 'Booster':'#f97316', 'ETB':'#a855f7', 'Coffret':'#22d3ee', 'Display':'#ec4899', 'Bundle':'#4ade80', 'Autre':'var(--text-muted)' };
+  const typeColor = typeColors[type] || 'var(--text-muted)';
+
+  // For non-card products, use cover instead of contain for better display
+  const objectFit = isCard ? 'contain' : 'cover';
 
   // Store listing in global array so we can reference it from onclick without inline data
   window._shopListings[index] = listing;
 
   return `
-    <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}">
+    <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}" data-type="${type}">
       <div class="poke-card-img">
-        ${listing.image ? `<img src="${listing.image}" alt="${listing.name}" loading="lazy" style="width:100%;height:100%;object-fit:contain;position:absolute;inset:0;">` : `
+        ${type !== 'Carte' ? `<span class="card-badge hot" style="background:${typeColor};">${type}</span>` : ''}
+        ${listing.image ? `<img src="${listing.image}" alt="${listing.name}" loading="lazy" style="width:100%;height:100%;object-fit:${objectFit};position:absolute;inset:0;">` : `
         <div class="card-visual">
           <div class="card-bg" style="background:linear-gradient(135deg,#2a2a3e,#1a1a2e)"></div>
           <div class="card-name-overlay">${listing.name}</div>
@@ -158,7 +168,7 @@ function buildListingHTML(listing, index) {
         <div class="poke-card-set">${listing.set || ''}</div>
         <div class="poke-card-name">${listing.name}</div>
         <div class="poke-card-rarity">
-          ${listing.rarity || ''} <span class="condition-badge ${cc}">${listing.condition}</span>
+          ${listing.rarity || ''} <span class="condition-badge condition-${cc}">${listing.condition}</span>
         </div>
         <div class="poke-card-footer">
           <div class="poke-card-price">${parseFloat(listing.price).toFixed(2)}&nbsp;€</div>
