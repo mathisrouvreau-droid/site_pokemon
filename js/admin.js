@@ -396,11 +396,60 @@ function onProductTypeChange() {
   }
 }
 
-// ─── API SEARCH — all languages ───
-const API_LANGS = ['fr', 'en', 'ja', 'es', 'it', 'pt', 'de'];
+// ─── API SEARCH — FR + JA focus ───
+const API_LANGS = ['fr', 'en', 'ja'];
 
 // TCG Pocket set IDs to exclude (mobile game, not physical cards)
 const TCGP_SET_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'B1', 'B1a', 'B2'];
+
+// FR → JA name translation for common Pokémon
+const FR_TO_JA = {
+  'dracaufeu':'リザードン','pikachu':'ピカチュウ','mewtwo':'ミュウツー','mew':'ミュウ',
+  'ronflex':'カビゴン','tortank':'カメックス','florizarre':'フシギバナ','evoli':'イーブイ',
+  'leviator':'ギャラドス','ectoplasma':'ゲンガー','dracolosse':'カイリュー','lucario':'ルカリオ',
+  'rayquaza':'レックウザ','lugia':'ルギア','sulfura':'ファイヤー','artikodin':'フリーザー',
+  'electhor':'サンダー','arceus':'アルセウス','dialga':'ディアルガ','palkia':'パルキア',
+  'giratina':'ギラティナ','gardevoir':'サーナイト','gallame':'エルレイド','tyranocif':'バンギラス',
+  'mentali':'エーフィ','noctali':'ブラッキー','aquali':'シャワーズ','voltali':'サンダース',
+  'pyroli':'ブースター','phyllali':'リーフィア','givrali':'グレイシア','nymphali':'ニンフィア',
+  'salamèche':'ヒトカゲ','reptincel':'リザード','carapuce':'ゼニガメ','carabaffe':'カメール',
+  'bulbizarre':'フシギダネ','herbizarre':'フシギソウ','raichu':'ライチュウ','magicarpe':'コイキング',
+  'metamorph':'メタモン','lokhlass':'ラプラス','dracolosse':'カイリュー','minidraco':'ミニリュウ',
+  'draco':'ハクリュー','abra':'ケーシィ','kadabra':'ユンゲラー','alakazam':'フーディン',
+  'machoc':'ワンリキー','machopeur':'ゴーリキー','mackogneur':'カイリキー','feunard':'キュウコン',
+  'goupix':'ロコン','caninos':'ガーディ','arcanin':'ウインディ','osselait':'カラカラ',
+  'ossatueur':'ガラガラ','elektek':'エレブー','magmar':'ブーバー','scarabrute':'カイロス',
+  'tauros':'ケンタロス','latios':'ラティオス','latias':'ラティアス','groudon':'グラードン',
+  'kyogre':'カイオーガ','deoxys':'デオキシス','darkrai':'ダークライ','cresselia':'クレセリア',
+  'reshiram':'レシラム','zekrom':'ゼクロム','kyurem':'キュレム','xerneas':'ゼルネアス',
+  'yveltal':'イベルタル','zygarde':'ジガルデ','solgaleo':'ソルガレオ','lunala':'ルナアーラ',
+  'necrozma':'ネクロズマ','zarude':'ザルード','celebi':'セレビィ','jirachi':'ジラーチ',
+  'regice':'レジアイス','regirock':'レジロック','registeel':'レジスチル','regigigas':'レジギガス',
+  'heatran':'ヒードラン','crefadet':'アグノム','crefollet':'ユクシー','crehelf':'エムリット',
+  'suicune':'スイクン','entei':'エンテイ','raikou':'ライコウ','hooh':'ホウオウ',
+  'zoroark':'ゾロアーク','zorua':'ゾロア','absol':'アブソル','migalos':'アリアドス',
+  'amphinobi':'ゲッコウガ','greninja':'ゲッコウガ','braségali':'バシャーモ','blaziken':'バシャーモ',
+  'jungko':'ジュカイン','sceptile':'ジュカイン','laggron':'ラグラージ','swampert':'ラグラージ',
+};
+
+// EN → JA translation
+const EN_TO_JA = {
+  'charizard':'リザードン','pikachu':'ピカチュウ','mewtwo':'ミュウツー','mew':'ミュウ',
+  'snorlax':'カビゴン','blastoise':'カメックス','venusaur':'フシギバナ','eevee':'イーブイ',
+  'gyarados':'ギャラドス','gengar':'ゲンガー','dragonite':'カイリュー','lucario':'ルカリオ',
+  'rayquaza':'レックウザ','lugia':'ルギア','moltres':'ファイヤー','articuno':'フリーザー',
+  'zapdos':'サンダー','arceus':'アルセウス','dialga':'ディアルガ','palkia':'パルキア',
+  'giratina':'ギラティナ','gardevoir':'サーナイト','tyranitar':'バンギラス',
+  'espeon':'エーフィ','umbreon':'ブラッキー','vaporeon':'シャワーズ','jolteon':'サンダース',
+  'flareon':'ブースター','leafeon':'リーフィア','glaceon':'グレイシア','sylveon':'ニンフィア',
+  'charmander':'ヒトカゲ','charmeleon':'リザード','squirtle':'ゼニガメ','wartortle':'カメール',
+  'bulbasaur':'フシギダネ','ivysaur':'フシギソウ','raichu':'ライチュウ','magikarp':'コイキング',
+  'ditto':'メタモン','lapras':'ラプラス','dratini':'ミニリュウ','dragonair':'ハクリュー',
+  'alakazam':'フーディン','machamp':'カイリキー','ninetales':'キュウコン','vulpix':'ロコン',
+  'growlithe':'ガーディ','arcanine':'ウインディ','latios':'ラティオス','latias':'ラティアス',
+  'groudon':'グラードン','kyogre':'カイオーガ','reshiram':'レシラム','zekrom':'ゼクロム',
+  'greninja':'ゲッコウガ','blaziken':'バシャーモ','sceptile':'ジュカイン','swampert':'ラグラージ',
+};
 
 function isTCGPocketCard(card) {
   const id = card.id || '';
@@ -425,89 +474,65 @@ async function searchApi() {
   const results = document.getElementById('apiResults');
   results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours (FR + JA)...</p>';
 
-  // Step 1: Search FR and EN in parallel
-  const [cardsFR, cardsEN] = await Promise.all([
+  // Build JA search term from translation tables
+  const queryLow = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const jaName = FR_TO_JA[queryLow] || EN_TO_JA[queryLow] || null;
+
+  // Search FR + EN + JA (by translated name) all in parallel
+  const searches = [
     fetchCardsFromLang('fr', query),
     fetchCardsFromLang('en', query),
-  ]);
+  ];
+  // JA: search with Japanese name if we have a translation
+  if (jaName) {
+    searches.push(fetchCardsFromLang('ja', jaName));
+  }
+  // JA: also try direct query (works for English names in JA db)
+  searches.push(fetchCardsFromLang('ja', query));
 
-  // Step 2: Collect all unique IDs found in FR/EN
-  const foundIds = new Set();
-  for (const c of [...cardsFR, ...cardsEN]) {
-    if (c.id) foundIds.add(c.id);
+  const [cardsFR, cardsEN, ...jaSearches] = await Promise.all(searches);
+
+  // Merge all JA results
+  const cardsJA = [];
+  for (const batch of jaSearches) {
+    for (const c of (batch || [])) cardsJA.push(c);
   }
 
-  // Step 3: For each ID found, try to fetch the JA version
-  // (JA cards often have different names so text search doesn't work)
-  const jaCards = [];
-  const jaPromises = [];
-  for (const id of [...foundIds].slice(0, 30)) { // limit to 30 to avoid too many requests
-    jaPromises.push(
-      fetch(`https://api.tcgdex.net/v2/ja/cards/${id}`)
-        .then(r => r.ok ? r.json() : null)
-        .catch(() => null)
-    );
-  }
-  const jaResults = await Promise.all(jaPromises);
-  for (const card of jaResults) {
-    if (card && card.id && !isTCGPocketCard(card)) {
-      jaCards.push({ ...card, _lang: 'ja' });
-    }
-  }
-
-  // Also search JA directly by name (for JA-exclusive cards with english names)
-  const jaByName = await fetchCardsFromLang('ja', query);
-
-  // Step 4: Merge all — FR first, then JA exclusives, then EN
+  // Deduplicate: FR cards, then JA cards (as separate entries!), then EN
   const cardMap = new Map();
 
-  // FR cards first (priority)
+  // FR first
   for (const c of cardsFR) {
     if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c);
   }
 
-  // JA cards that exist (found by ID) — mark them but don't override FR
-  // Instead, store JA versions alongside
-  const jaMap = new Map();
-  for (const c of jaCards) {
-    if (c.id) jaMap.set(c.id, c);
-  }
-
-  // JA-only cards (not in FR/EN) — from name search
-  for (const c of jaByName) {
-    if (c.id && !cardMap.has(c.id)) {
-      cardMap.set(c.id, c);
-    }
-  }
-
-  // EN cards (for those not in FR)
+  // EN for missing
+  const enMap = new Map();
   for (const c of cardsEN) {
+    if (c.id) enMap.set(c.id, c);
     if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c);
   }
 
-  // Add JA-exclusive cards found by ID that aren't already in the map
-  for (const c of jaCards) {
-    if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c);
+  // JA cards get added as SEPARATE entries with a unique key
+  const jaMap = new Map();
+  for (const c of cardsJA) {
+    if (c.id) {
+      jaMap.set(c.id, c);
+      const jaKey = c.id + '-ja';
+      if (!cardMap.has(jaKey)) {
+        cardMap.set(jaKey, { ...c, _isJaCopy: true });
+      }
+    }
   }
 
   const allCards = Array.from(cardMap.values());
 
-  // Build a map of EN cards for image fallback
-  const enMap = new Map();
-  for (const c of cardsEN) { if (c.id) enMap.set(c.id, c); }
-
-  // Enrich cards: fill missing images from other langs, tag JA
+  // Fill missing images: FR cards without image get EN or JA image
   for (const c of allCards) {
-    if (jaMap.has(c.id)) {
-      c._hasJa = true;
-      // If FR card has no image, try JA image
-      if (!c.image && jaMap.get(c.id).image) {
-        c.image = jaMap.get(c.id).image;
-      }
-    }
-    // If still no image, try EN
-    if (!c.image && enMap.has(c.id) && enMap.get(c.id).image) {
-      c.image = enMap.get(c.id).image;
+    if (!c._isJaCopy) {
+      if (jaMap.has(c.id)) c._hasJa = true;
+      if (!c.image && jaMap.has(c.id) && jaMap.get(c.id).image) c.image = jaMap.get(c.id).image;
+      if (!c.image && enMap.has(c.id) && enMap.get(c.id).image) c.image = enMap.get(c.id).image;
     }
   }
 
@@ -516,25 +541,56 @@ async function searchApi() {
     return;
   }
 
-  results.innerHTML = allCards.map(c => {
-    const img = c.image ? `${c.image}/low.webp` : '';
-    const setName = c.set?.name || '';
-    const rarity = c.rarity || '';
-    const safeId = (c.id || '').replace(/'/g, "\\'");
-    const langFlag = { fr:'🇫🇷', en:'🇬🇧', ja:'🇯🇵' }[c._lang] || '🇫🇷';
-    const jaTag = c._hasJa ? '<span style="font-size:0.55rem;background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 5px;border-radius:4px;margin-left:2px;">JA</span>' : '';
+  // Separate FR/EN and JA for display
+  const frEnCards = allCards.filter(c => !c._isJaCopy);
+  const jaOnlyCards = allCards.filter(c => c._isJaCopy);
 
-    return `
-      <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}', '${c._lang || 'fr'}')">
-        ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);padding:4px;text-align:center;">${c.name || '?'}</div>`}
-        <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">${langFlag}</span>${jaTag}</div>
-        <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
-        <div class="check">✓</div>
-      </div>`;
-  }).join('');
+  let html = '';
 
-  const jaCount = allCards.filter(c => c._lang === 'ja' || c._hasJa).length;
-  results.insertAdjacentHTML('beforeend', `<p style="font-size:0.7rem;color:var(--text-muted);padding:8px 4px;grid-column:1/-1;">${allCards.length} résultat(s) · dont ${jaCount} avec version JA</p>`);
+  if (frEnCards.length > 0) {
+    html += `<p style="font-size:0.7rem;font-weight:600;color:var(--holo-1);padding:4px;grid-column:1/-1;margin-bottom:4px;">🇫🇷 Cartes FR / EN (${frEnCards.length})</p>`;
+    html += frEnCards.map(c => {
+      const img = c.image ? `${c.image}/low.webp` : '';
+      const setName = c.set?.name || '';
+      const rarity = c.rarity || '';
+      const safeId = (c.id || '').replace(/'/g, "\\'");
+      const langFlag = c._lang === 'en' ? '🇬🇧' : '🇫🇷';
+
+      return `
+        <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}', '${c._lang || 'fr'}')">
+          ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);padding:4px;text-align:center;">${c.name || '?'}</div>`}
+          <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">${langFlag}</span></div>
+          <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
+          <div class="check">✓</div>
+        </div>`;
+    }).join('');
+  }
+
+  if (jaOnlyCards.length > 0) {
+    html += `<p style="font-size:0.7rem;font-weight:600;color:#ef4444;padding:4px;grid-column:1/-1;margin-top:12px;margin-bottom:4px;">🇯🇵 Cartes Japonaises (${jaOnlyCards.length})</p>`;
+    html += jaOnlyCards.map(c => {
+      const img = c.image ? `${c.image}/low.webp` : '';
+      const setName = c.set?.name || '';
+      const rarity = c.rarity || '';
+      const realId = (c.id || '').replace(/-ja$/, '');
+      const safeId = realId.replace(/'/g, "\\'");
+
+      return `
+        <div class="api-result-card" data-id="${realId}" onclick="selectApiCard(this, '${safeId}', 'ja')" style="border-color:rgba(239,68,68,0.15);">
+          ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);padding:4px;text-align:center;">${c.name || '?'}</div>`}
+          <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">🇯🇵</span></div>
+          <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
+          <div class="check">✓</div>
+        </div>`;
+    }).join('');
+  }
+
+  if (!html) {
+    html = `<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;grid-column:1/-1;">Aucun résultat.</p>`;
+  }
+
+  results.innerHTML = html;
+  results.insertAdjacentHTML('beforeend', `<p style="font-size:0.7rem;color:var(--text-muted);padding:8px 4px;grid-column:1/-1;">${frEnCards.length} FR/EN · ${jaOnlyCards.length} JA${jaName ? ' (traduit: ' + jaName + ')' : ''}</p>`);
 }
 
 async function selectApiCard(el, id, sourceLang = 'fr') {
