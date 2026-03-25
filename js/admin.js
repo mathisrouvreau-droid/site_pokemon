@@ -492,9 +492,23 @@ async function searchApi() {
 
   const allCards = Array.from(cardMap.values());
 
-  // Tag cards that have a JA version available
+  // Build a map of EN cards for image fallback
+  const enMap = new Map();
+  for (const c of cardsEN) { if (c.id) enMap.set(c.id, c); }
+
+  // Enrich cards: fill missing images from other langs, tag JA
   for (const c of allCards) {
-    if (jaMap.has(c.id)) c._hasJa = true;
+    if (jaMap.has(c.id)) {
+      c._hasJa = true;
+      // If FR card has no image, try JA image
+      if (!c.image && jaMap.get(c.id).image) {
+        c.image = jaMap.get(c.id).image;
+      }
+    }
+    // If still no image, try EN
+    if (!c.image && enMap.has(c.id) && enMap.get(c.id).image) {
+      c.image = enMap.get(c.id).image;
+    }
   }
 
   if (allCards.length === 0) {
