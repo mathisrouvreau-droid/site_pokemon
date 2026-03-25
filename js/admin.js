@@ -245,30 +245,28 @@ function openCardModal(index = null) {
           </select>
         </div>
 
-        <!-- Image source: API (cards only) or custom upload -->
-        <div id="imageSourceSection">
-          <!-- Tabs shown only for cards -->
-          <div id="imageTabs" style="display:flex;gap:8px;margin-bottom:16px;">
-            <button class="filter-btn active" id="tabApi" onclick="switchModalTab('api')">Recherche API</button>
-            <button class="filter-btn" id="tabCustom" onclick="switchModalTab('custom')">Image personnalisée</button>
-          </div>
+        <!-- Hidden tabs (not shown, logic in onProductTypeChange) -->
+        <div id="imageTabs" style="display:none;"></div>
+        <div id="tabApi" style="display:none;"></div>
+        <div id="tabCustom" style="display:none;"></div>
 
-          <!-- API search (cards only) -->
-          <div id="modalApiSection">
-            <div class="api-search-row">
-              <input type="text" class="form-input" id="apiSearchInput" placeholder="Rechercher une carte (ex: Dracaufeu)..." value="${listing?.apiId ? listing.name : ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();searchApi();}">
-              <button class="holo-btn-filled" style="padding:10px 20px;font-size:0.85rem;white-space:nowrap;" onclick="searchApi()">Chercher</button>
-            </div>
-            <div class="api-search-results" id="apiResults"></div>
-            <div id="selectedCardPreview" style="display:none;margin-bottom:20px;"></div>
+        <!-- API search (cards: identify the card) -->
+        <div id="modalApiSection">
+          <label class="form-label" style="margin-bottom:12px;">Identifier la carte via l'API</label>
+          <div class="api-search-row">
+            <input type="text" class="form-input" id="apiSearchInput" placeholder="Rechercher une carte (ex: Dracaufeu)..." value="${listing?.apiId ? listing.name : ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();searchApi();}">
+            <button class="holo-btn-filled" style="padding:10px 20px;font-size:0.85rem;white-space:nowrap;" onclick="searchApi()">Chercher</button>
           </div>
+          <div class="api-search-results" id="apiResults"></div>
+          <div id="selectedCardPreview" style="display:none;margin-bottom:20px;"></div>
+        </div>
 
-          <!-- Custom image upload (always available) -->
-          <div id="modalCustomSection" style="display:none;">
-            <div id="customUploadZone" class="image-upload-area">
-              <div id="customUploadContent">
-                ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt="" style="max-height:180px;margin:0 auto;border-radius:8px;"><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
-              </div>
+        <!-- Photo upload (cards: photos état réel / produits: photo produit) -->
+        <div id="modalCustomSection">
+          <label class="form-label" id="customUploadLabel" style="margin-bottom:12px;">Photos du produit</label>
+          <div id="customUploadZone" class="image-upload-area">
+            <div id="customUploadContent">
+              ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt="" style="max-height:180px;margin:0 auto;border-radius:8px;"><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
             </div>
           </div>
         </div>
@@ -325,13 +323,13 @@ function openCardModal(index = null) {
   // Configure form based on product type
   onProductTypeChange();
 
-  // If editing an API card, preselect
+  // If editing, restore state
   if (listing?.apiId) {
     selectedApiCard = { id: listing.apiId, name: listing.name, image: listing.image, set: { name: listing.set }, rarity: listing.rarity };
   }
-  if (listing && !listing.apiId && listing.image) {
+  // If listing has a custom image (base64 data URL), restore it
+  if (listing && listing.image && listing.image.startsWith('data:')) {
     customImageData = listing.image;
-    switchModalTab('custom');
   }
 }
 
@@ -348,8 +346,8 @@ function closeCardModal() {
 function switchModalTab(tab) {
   document.getElementById('modalApiSection').style.display = tab === 'api' ? '' : 'none';
   document.getElementById('modalCustomSection').style.display = tab === 'custom' ? '' : 'none';
-  document.getElementById('tabApi').classList.toggle('active', tab === 'api');
-  document.getElementById('tabCustom').classList.toggle('active', tab === 'custom');
+  document.getElementById('tabApi')?.classList.toggle('active', tab === 'api');
+  document.getElementById('tabCustom')?.classList.toggle('active', tab === 'custom');
 }
 
 // ─── Product type change: adapt form fields ───
@@ -358,18 +356,24 @@ function onProductTypeChange() {
   const isCard = (type === 'Carte');
   const imageTabs = document.getElementById('imageTabs');
   const rarityGroup = document.getElementById('rarityGroup');
+  const apiSection = document.getElementById('modalApiSection');
+  const customSection = document.getElementById('modalCustomSection');
+  const customLabel = document.getElementById('customUploadLabel');
 
-  // API search only available for cards
   if (isCard) {
-    imageTabs.style.display = 'flex';
+    // Cards: show API search + photo upload both visible
+    imageTabs.style.display = 'none'; // hide tabs, both sections always visible
+    apiSection.style.display = '';
+    customSection.style.display = '';
     rarityGroup.style.display = '';
-    // Default to API tab
-    switchModalTab('api');
+    if (customLabel) customLabel.textContent = 'Photos de la carte (état réel)';
   } else {
+    // Sealed products: only custom upload
     imageTabs.style.display = 'none';
+    apiSection.style.display = 'none';
+    customSection.style.display = '';
     rarityGroup.style.display = 'none';
-    // Force custom upload for non-card products
-    switchModalTab('custom');
+    if (customLabel) customLabel.textContent = 'Photo du produit';
   }
 
   // Update placeholders
@@ -568,13 +572,17 @@ function saveCard() {
   if (!condition) { alert('Veuillez sélectionner l\'état.'); return; }
 
   // Determine image source
+  // Custom photo takes priority (shows real card condition)
+  // API image is fallback if no custom photo uploaded
   let image = '';
   let apiId = '';
-  if (selectedApiCard) {
-    image = selectedApiCard.image;
-    apiId = selectedApiCard.id;
-  } else if (customImageData) {
+  if (customImageData) {
     image = customImageData;
+  } else if (selectedApiCard) {
+    image = selectedApiCard.image;
+  }
+  if (selectedApiCard) {
+    apiId = selectedApiCard.id;
   }
 
   const conditionClassMap = {
