@@ -404,32 +404,52 @@ async function searchApi() {
   const results = document.getElementById('apiResults');
   results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours...</p>';
 
-  const cards = await TCGdex.getCards({ name: query, itemsPerPage: 20 });
+  // Search in FR (main) and EN (fallback) simultaneously
+  const [cardsFR, cardsEN] = await Promise.all([
+    TCGdex.getCards({ name: query, itemsPerPage: 50 }),
+    fetchEN(query),
+  ]);
 
-  if (!cards || !cards.length) {
-    results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat.</p>';
+  // Merge results, deduplicate by ID
+  const seen = new Set();
+  const allCards = [];
+  for (const c of [...(cardsFR || []), ...(cardsEN || [])]) {
+    if (c.id && !seen.has(c.id)) {
+      seen.add(c.id);
+      allCards.push(c);
+    }
+  }
+
+  if (allCards.length === 0) {
+    results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat pour "' + query + '". Essayez le nom français ou anglais.</p>';
     return;
   }
 
-  // For each card, we have basic info from the list endpoint
-  // Show name + set + rarity info under each card
-  results.innerHTML = cards.map(c => {
+  results.innerHTML = allCards.map(c => {
     const img = c.image ? `${c.image}/low.webp` : '';
     const setName = c.set?.name || '';
     const rarity = c.rarity || '';
     const safeId = (c.id || '').replace(/'/g, "\\'");
-    const safeName = (c.name || '').replace(/'/g, "\\'");
-    const safeSet = setName.replace(/'/g, "\\'");
-    const safeRarity = rarity.replace(/'/g, "\\'");
 
     return `
       <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}')">
-        ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);"></div>`}
+        ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);padding:4px;text-align:center;">${c.name || '?'}</div>`}
         <div class="name">${c.name || '?'}</div>
         <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
         <div class="check">✓</div>
       </div>`;
   }).join('');
+
+  results.insertAdjacentHTML('beforeend', `<p style="font-size:0.7rem;color:var(--text-muted);padding:8px 4px;grid-column:1/-1;">${allCards.length} résultat(s) trouvé(s)</p>`);
+}
+
+// Fetch from English API endpoint
+async function fetchEN(query) {
+  try {
+    const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=like:${encodeURIComponent(query)}&pagination:itemsPerPage=50`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
 }
 
 async function selectApiCard(el, id) {
@@ -437,9 +457,16 @@ async function selectApiCard(el, id) {
   document.querySelectorAll('.api-result-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
 
-  // Fetch full card detail from API to get all info
+  // Fetch full card detail — try FR first, fallback to EN
   el.style.opacity = '0.6';
-  const detail = await TCGdex.getCard(id);
+  let detail = await TCGdex.getCard(id);
+  if (!detail) {
+    // Try English endpoint
+    try {
+      const res = await fetch(`https://api.tcgdex.net/v2/en/cards/${id}`);
+      if (res.ok) detail = await res.json();
+    } catch {}
+  }
   el.style.opacity = '1';
 
   if (!detail) return;

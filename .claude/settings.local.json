@@ -5,7 +5,9 @@
       "WebSearch",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/fr/cards?name=like:Dracaufeu&pagination:itemsPerPage=5\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/fr/cards?name=like:Pikachu&pagination:itemsPerPage=3\")"
     ]
   }
 }
