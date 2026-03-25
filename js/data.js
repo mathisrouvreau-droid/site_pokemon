@@ -227,15 +227,15 @@ function openListingDetail(index) {
 
   const modal = document.createElement('div');
   modal.id = 'listingModal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);padding:20px;';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(16px) saturate(1.3);padding:20px;';
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
   const objectFit = (type === 'Carte') ? 'contain' : 'cover';
 
   modal.innerHTML = `
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;max-width:860px;width:100%;max-height:90vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:0;animation:fadeInUp 0.3s ease;" onclick="event.stopPropagation()">
+    <div style="background:rgba(10,10,18,0.65);backdrop-filter:blur(32px) saturate(1.5);-webkit-backdrop-filter:blur(32px) saturate(1.5);border:1px solid rgba(255,255,255,0.08);border-radius:20px;max-width:860px;width:100%;max-height:90vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:0;animation:fadeInUp 0.3s ease;box-shadow:0 24px 80px rgba(0,0,0,0.4),0 1px 0 rgba(255,255,255,0.05) inset;" onclick="event.stopPropagation()">
       <!-- Image -->
-      <div style="padding:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);border-radius:20px 0 0 20px;min-height:300px;">
+      <div style="padding:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);border-radius:20px 0 0 20px;border-right:1px solid rgba(255,255,255,0.04);min-height:300px;">
         ${listing.image
           ? `<img src="${listing.image}" alt="${listing.name}" style="max-width:100%;max-height:70vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.4);object-fit:${objectFit};">`
           : `<div style="width:200px;height:280px;border-radius:12px;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.9rem;">Pas d'image</div>`
@@ -254,7 +254,7 @@ function openListingDetail(index) {
 
         <!-- Badges -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
-          <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;background:rgba(255,255,255,0.06);color:${typeColor};">${type}</span>
+          <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);color:${typeColor};">${type}</span>
           <span class="condition-badge condition-${cc}" style="font-size:0.7rem;">${listing.condition}</span>
           ${listing.rarity ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${listing.rarity}</span>` : ''}
         </div>
@@ -276,21 +276,21 @@ function openListingDetail(index) {
         <div style="margin-bottom:28px;">
           <h4 style="font-size:0.8rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;">Détails</h4>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Type</div>
               <div style="font-size:0.85rem;font-weight:600;">${type}</div>
             </div>
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">État</div>
               <div style="font-size:0.85rem;font-weight:600;">${listing.condition}</div>
             </div>
             ${listing.set ? `
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Extension</div>
               <div style="font-size:0.85rem;font-weight:600;">${listing.set}</div>
             </div>` : ''}
             ${listing.rarity ? `
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Rareté</div>
               <div style="font-size:0.85rem;font-weight:600;">${listing.rarity}</div>
             </div>` : ''}
@@ -324,7 +324,7 @@ async function openCardDetail(cardId) {
   modal.id = 'cardModal';
   modal.style.cssText = `
     position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;
-    background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);padding:20px;animation:fadeInUp 0.3s ease;
+    background:rgba(0,0,0,0.5);backdrop-filter:blur(16px) saturate(1.3);padding:20px;animation:fadeInUp 0.3s ease;
   `;
 
   const types = card.types?.join(', ') || '';
@@ -337,8 +337,8 @@ async function openCardDetail(cardId) {
   `).join('') || '';
 
   modal.innerHTML = `
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;max-width:800px;width:100%;max-height:90vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:0;" onclick="event.stopPropagation()">
-      <div style="padding:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);border-radius:20px 0 0 20px;">
+    <div style="background:rgba(10,10,18,0.65);backdrop-filter:blur(32px) saturate(1.5);-webkit-backdrop-filter:blur(32px) saturate(1.5);border:1px solid rgba(255,255,255,0.08);border-radius:20px;max-width:800px;width:100%;max-height:90vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:0;box-shadow:0 24px 80px rgba(0,0,0,0.4),0 1px 0 rgba(255,255,255,0.05) inset;" onclick="event.stopPropagation()">
+      <div style="padding:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);border-radius:20px 0 0 20px;border-right:1px solid rgba(255,255,255,0.04);">
         ${imgUrl ? `<img src="${imgUrl}" alt="${card.name}" style="max-width:100%;max-height:70vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.4);">` : ''}
       </div>
       <div style="padding:32px;overflow-y:auto;">
