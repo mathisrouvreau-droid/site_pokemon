@@ -164,6 +164,7 @@ function renderCardsTab(container) {
             <tr>
               <th>Produit</th>
               <th>Type</th>
+              <th>Origine</th>
               <th>État</th>
               <th>Prix</th>
               <th>Date</th>
@@ -187,6 +188,7 @@ function renderCardsTab(container) {
                   </div>
                 </td>
                 <td><span style="font-size:0.75rem;font-weight:600;color:${typeColor};">${typeLabel}</span></td>
+                <td><span style="font-size:0.8rem;">${{'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'}[l.origin] || '🇫🇷'} ${l.origin || 'FR'}</span></td>
                 <td><span class="condition-badge condition-${l.conditionClass || 'nm'}">${l.condition}</span></td>
                 <td><strong>${parseFloat(l.price).toFixed(2)} €</strong></td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${l.date || '—'}</td>
@@ -295,9 +297,26 @@ function openCardModal(index = null) {
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Set / Extension</label>
-          <input type="text" class="form-input" id="modalCardSet" placeholder="Ex: Écarlate & Violet" value="${listing?.set || ''}">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Set / Extension</label>
+            <input type="text" class="form-input" id="modalCardSet" placeholder="Ex: Écarlate & Violet" value="${listing?.set || ''}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Provenance</label>
+            <select class="form-select" id="modalCardOrigin">
+              <option value="FR" ${(!listing || listing.origin === 'FR') ? 'selected' : ''}>🇫🇷 Française</option>
+              <option value="EN" ${listing?.origin === 'EN' ? 'selected' : ''}>🇬🇧 Anglaise</option>
+              <option value="JA" ${listing?.origin === 'JA' ? 'selected' : ''}>🇯🇵 Japonaise</option>
+              <option value="KO" ${listing?.origin === 'KO' ? 'selected' : ''}>🇰🇷 Coréenne</option>
+              <option value="DE" ${listing?.origin === 'DE' ? 'selected' : ''}>🇩🇪 Allemande</option>
+              <option value="ES" ${listing?.origin === 'ES' ? 'selected' : ''}>🇪🇸 Espagnole</option>
+              <option value="IT" ${listing?.origin === 'IT' ? 'selected' : ''}>🇮🇹 Italienne</option>
+              <option value="PT" ${listing?.origin === 'PT' ? 'selected' : ''}>🇧🇷 Portugaise</option>
+              <option value="CN" ${listing?.origin === 'CN' ? 'selected' : ''}>🇨🇳 Chinoise</option>
+              <option value="TW" ${listing?.origin === 'TW' ? 'selected' : ''}>🇹🇼 Taïwanaise</option>
+            </select>
+          </div>
         </div>
         <div class="form-group" id="rarityGroup">
           <label class="form-label">Rareté</label>
@@ -682,6 +701,12 @@ async function selectApiCard(el, id, sourceLang = 'fr') {
   document.getElementById('modalCardName').value = detail.name || '';
   document.getElementById('modalCardSet').value = setName;
   document.getElementById('modalCardRarity').value = rarity;
+  // Auto-set origin based on source language
+  const originMap = { 'fr':'FR', 'en':'EN', 'ja':'JA', 'de':'DE', 'es':'ES', 'it':'IT', 'pt':'PT' };
+  const originSelect = document.getElementById('modalCardOrigin');
+  if (originSelect && sourceLang && originMap[sourceLang]) {
+    originSelect.value = originMap[sourceLang];
+  }
 
   // Show selected card detail preview
   const previewEl = document.getElementById('selectedCardPreview');
@@ -776,6 +801,7 @@ function saveCard() {
   const price = document.getElementById('modalCardPrice').value;
   const condition = document.getElementById('modalCardCondition').value;
   const set = document.getElementById('modalCardSet').value.trim();
+  const origin = document.getElementById('modalCardOrigin')?.value || 'FR';
   const rarity = document.getElementById('modalCardRarity')?.value.trim() || '';
   const description = document.getElementById('modalCardDesc')?.value.trim() || '';
 
@@ -805,7 +831,7 @@ function saveCard() {
   const listing = {
     type, name, price: parseFloat(price), condition,
     conditionClass: conditionClassMap[condition] || 'nm',
-    set, rarity, description, image, apiId,
+    set, origin, rarity, description, image, apiId,
     date: new Date().toLocaleDateString('fr-FR'),
   };
 

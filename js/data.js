@@ -150,13 +150,18 @@ function buildListingHTML(listing, index) {
   // For non-card products, use cover instead of contain for better display
   const objectFit = isCard ? 'contain' : 'cover';
 
+  const origin = listing.origin || 'FR';
+  const originFlags = {'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'};
+  const flag = originFlags[origin] || '🇫🇷';
+
   // Store listing in global array so we can reference it from onclick without inline data
   window._shopListings[index] = listing;
 
   return `
-    <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}" data-type="${type}" onclick="openListingDetail(${index})" style="cursor:pointer;">
+    <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}" data-type="${type}" data-origin="${origin}" onclick="openListingDetail(${index})" style="cursor:pointer;">
       <div class="poke-card-img">
         ${type !== 'Carte' ? `<span class="card-badge hot" style="background:${typeColor};">${type}</span>` : ''}
+        <span style="position:absolute;top:10px;right:10px;font-size:1.1rem;z-index:2;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${flag}</span>
         ${listing.image ? `<img src="${listing.image}" alt="${listing.name}" loading="lazy" style="width:100%;height:100%;object-fit:${objectFit};position:absolute;inset:0;">` : `
         <div class="card-visual">
           <div class="card-bg" style="background:linear-gradient(135deg,#2a2a3e,#1a1a2e)"></div>
@@ -255,6 +260,7 @@ function openListingDetail(index) {
         <!-- Badges -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
           <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);color:${typeColor};">${type}</span>
+          <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">${{'FR':'🇫🇷 Française','EN':'🇬🇧 Anglaise','JA':'🇯🇵 Japonaise','KO':'🇰🇷 Coréenne','DE':'🇩🇪 Allemande','ES':'🇪🇸 Espagnole','IT':'🇮🇹 Italienne','PT':'🇧🇷 Portugaise','CN':'🇨🇳 Chinoise','TW':'🇹🇼 Taïwanaise'}[listing.origin] || '🇫🇷 Française'}</span>
           <span class="condition-badge condition-${cc}" style="font-size:0.7rem;">${listing.condition}</span>
           ${listing.rarity ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${listing.rarity}</span>` : ''}
         </div>

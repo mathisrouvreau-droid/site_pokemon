@@ -92,6 +92,19 @@
               <option value="Display">Displays</option>
               <option value="Bundle">Bundles</option>
             </select>
+            <select class="filter-select" id="allOriginFilter">
+              <option value="all">Toutes provenances</option>
+              <option value="FR">🇫🇷 Française</option>
+              <option value="EN">🇬🇧 Anglaise</option>
+              <option value="JA">🇯🇵 Japonaise</option>
+              <option value="KO">🇰🇷 Coréenne</option>
+              <option value="DE">🇩🇪 Allemande</option>
+              <option value="ES">🇪🇸 Espagnole</option>
+              <option value="IT">🇮🇹 Italienne</option>
+              <option value="PT">🇧🇷 Portugaise</option>
+              <option value="CN">🇨🇳 Chinoise</option>
+              <option value="TW">🇹🇼 Taïwanaise</option>
+            </select>
           </div>
           <div id="allPagination" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
           <div class="allcards-grid" id="allGrid"></div>
@@ -112,6 +125,19 @@
           </div>
           <div class="sub-filter-bar" id="cardsFilterBar">
             <select class="filter-select" id="cardsSetFilter"><option value="all">Tous les sets</option></select>
+            <select class="filter-select" id="cardsOriginFilter">
+              <option value="all">Toutes provenances</option>
+              <option value="FR">🇫🇷 Française</option>
+              <option value="EN">🇬🇧 Anglaise</option>
+              <option value="JA">🇯🇵 Japonaise</option>
+              <option value="KO">🇰🇷 Coréenne</option>
+              <option value="DE">🇩🇪 Allemande</option>
+              <option value="ES">🇪🇸 Espagnole</option>
+              <option value="IT">🇮🇹 Italienne</option>
+              <option value="PT">🇧🇷 Portugaise</option>
+              <option value="CN">🇨🇳 Chinoise</option>
+              <option value="TW">🇹🇼 Taïwanaise</option>
+            </select>
             <select class="filter-select" id="cardsRarityFilter"><option value="all">Toutes raretés</option></select>
             <select class="filter-select" id="cardsConditionFilter">
               <option value="all">Tous états</option>
@@ -158,6 +184,13 @@
 
           <div class="sub-filter-bar" id="sealedFilterBar">
             <select class="filter-select" id="sealedSetFilter"><option value="all">Tous les sets</option></select>
+            <select class="filter-select" id="sealedOriginFilter">
+              <option value="all">Toutes provenances</option>
+              <option value="FR">🇫🇷 Française</option>
+              <option value="EN">🇬🇧 Anglaise</option>
+              <option value="JA">🇯🇵 Japonaise</option>
+              <option value="KO">🇰🇷 Coréenne</option>
+            </select>
             <select class="filter-select" id="sealedSortFilter">
               <option value="recent">Plus récents</option>
               <option value="price-asc">Prix croissant</option>
@@ -247,15 +280,15 @@
 
     function attachFilterListeners() {
       // All view
-      ['allSetFilter', 'allTypeFilter'].forEach(id => {
+      ['allSetFilter', 'allTypeFilter', 'allOriginFilter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadAllProducts(); });
       });
       // Cards view
-      ['cardsSetFilter', 'cardsRarityFilter', 'cardsConditionFilter', 'cardsSortFilter'].forEach(id => {
+      ['cardsSetFilter', 'cardsOriginFilter', 'cardsRarityFilter', 'cardsConditionFilter', 'cardsSortFilter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadCards(); });
       });
       // Sealed view
-      ['sealedSetFilter', 'sealedSortFilter'].forEach(id => {
+      ['sealedSetFilter', 'sealedOriginFilter', 'sealedSortFilter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadSealed(); });
       });
     }
@@ -305,7 +338,13 @@
       if (sort === 'price-asc') return [...listings].sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
       if (sort === 'price-desc') return [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
       if (sort === 'name') return [...listings].sort((a, b) => a.name.localeCompare(b.name));
-      return listings; // recent = default order
+      return listings;
+    }
+
+    function applyOriginFilter(listings, filterId) {
+      const val = document.getElementById(filterId)?.value || 'all';
+      if (val === 'all') return listings;
+      return listings.filter(l => (l.origin || 'FR') === val);
     }
 
     // ─── ALL VIEW ───
@@ -334,6 +373,7 @@
       const typeVal = document.getElementById('allTypeFilter').value;
       if (typeVal !== 'all') listings = listings.filter(l => (l.type || 'Carte') === typeVal);
 
+      listings = applyOriginFilter(listings, 'allOriginFilter');
       paginate(listings, grid, 'allPagination', loadAllProducts);
     }
 
@@ -344,6 +384,8 @@
 
       const setVal = document.getElementById('cardsSetFilter').value;
       if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
+
+      listings = applyOriginFilter(listings, 'cardsOriginFilter');
 
       const rarVal = document.getElementById('cardsRarityFilter').value;
       if (rarVal !== 'all') listings = listings.filter(l => l.rarity === rarVal);
@@ -367,6 +409,7 @@
       const setVal = document.getElementById('sealedSetFilter').value;
       if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
 
+      listings = applyOriginFilter(listings, 'sealedOriginFilter');
       listings = applySorting(listings, 'sealedSortFilter');
       paginate(listings, grid, 'sealedPagination', loadSealed);
     }
