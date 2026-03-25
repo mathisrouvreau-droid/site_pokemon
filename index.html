@@ -173,14 +173,16 @@
       track.innerHTML = html + html;
     }
 
-    // ─── CATEGORIES (real sets from API) ───
+    // ─── CATEGORIES (real sets from API, no TCG Pocket) ───
+    const TCGP_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'B1', 'B1a', 'B2'];
+
     async function buildCategories() {
       const grid = document.getElementById('categoriesGrid');
       const sets = await TCGdex.getSets();
       if (!sets || !sets.length) return;
 
-      // Pick 4 recent sets
-      const recent = sets.slice(-8).reverse().filter(s => s.logo).slice(0, 4);
+      // Pick 4 recent sets, excluding TCG Pocket
+      const recent = sets.slice(-12).reverse().filter(s => s.logo && !TCGP_IDS.includes(s.id)).slice(0, 4);
       grid.innerHTML = recent.map(set => TCGdex.buildSetHTML(set)).join('');
     }
 

@@ -399,13 +399,22 @@ function onProductTypeChange() {
 // ─── API SEARCH — all languages ───
 const API_LANGS = ['fr', 'en', 'ja', 'es', 'it', 'pt', 'de'];
 
+// TCG Pocket set IDs to exclude (mobile game, not physical cards)
+const TCGP_SET_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'B1', 'B1a', 'B2'];
+
+function isTCGPocketCard(card) {
+  const id = card.id || '';
+  // TCG Pocket card IDs start with the set ID (e.g. "A1-001", "A2a-045")
+  return TCGP_SET_IDS.some(setId => id.startsWith(setId + '-'));
+}
+
 async function fetchCardsFromLang(lang, query) {
   try {
     const res = await fetch(`https://api.tcgdex.net/v2/${lang}/cards?name=like:${encodeURIComponent(query)}&pagination:itemsPerPage=50`);
     if (!res.ok) return [];
     const data = await res.json();
-    // Tag each card with the language it was found in
-    return data.map(c => ({ ...c, _lang: lang }));
+    // Filter out TCG Pocket cards, tag with language
+    return data.filter(c => !isTCGPocketCard(c)).map(c => ({ ...c, _lang: lang }));
   } catch { return []; }
 }
 

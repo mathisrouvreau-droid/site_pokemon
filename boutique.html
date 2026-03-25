@@ -196,10 +196,13 @@
       const apiSets = await TCGdex.getSets();
       const allSets = [];
 
+      // TCG Pocket set IDs to exclude
+      const TCGP_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'B1', 'B1a', 'B2'];
+
       if (apiSets && apiSets.length) {
-        // Group sets by series for better organization
         apiSets.reverse().forEach(s => {
-          if (s.name) allSets.push(s.name);
+          // Exclude TCG Pocket sets
+          if (s.name && !TCGP_IDS.includes(s.id)) allSets.push(s.name);
         });
       }
 
