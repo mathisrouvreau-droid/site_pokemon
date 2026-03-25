@@ -504,8 +504,21 @@ async function searchApi() {
   // Build JA search term from translation tables
   const queryLow = query.toLowerCase().trim();
   const queryNoAccent = queryLow.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  // Try with accents first, then without
-  const jaName = FR_TO_JA[queryLow] || EN_TO_JA[queryLow] || FR_TO_JA[queryNoAccent] || EN_TO_JA[queryNoAccent] || null;
+
+  // Exact match first, then partial match (query is prefix of a key)
+  let jaName = FR_TO_JA[queryLow] || EN_TO_JA[queryLow] || FR_TO_JA[queryNoAccent] || EN_TO_JA[queryNoAccent] || null;
+
+  if (!jaName) {
+    // Partial match: find keys that START with the query
+    const allEntries = [...Object.entries(FR_TO_JA), ...Object.entries(EN_TO_JA)];
+    for (const [key, val] of allEntries) {
+      if (key.startsWith(queryLow) || key.startsWith(queryNoAccent)) {
+        jaName = val;
+        break;
+      }
+    }
+  }
+
   console.log('[Holofoil] Search:', query, '→ JA:', jaName || '(no translation)');
 
   // Search FR + EN + JA (by translated name) all in parallel
