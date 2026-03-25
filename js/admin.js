@@ -425,23 +425,46 @@ async function searchApi() {
   const results = document.getElementById('apiResults');
   results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours dans toutes les langues...</p>';
 
-  // Search all languages in parallel
-  const allResults = await Promise.all(
-    API_LANGS.map(lang => fetchCardsFromLang(lang, query))
-  );
+  // Step 1: Search FR and EN first to find the name in both languages
+  const [cardsFR, cardsEN] = await Promise.all([
+    fetchCardsFromLang('fr', query),
+    fetchCardsFromLang('en', query),
+  ]);
 
-  // Merge & deduplicate by card ID, prefer FR > EN > others
-  const cardMap = new Map();
-  // Process FR first, then EN, then others so FR data takes priority
-  const langOrder = ['fr', 'en', 'ja', 'es', 'it', 'pt', 'de'];
-  for (const lang of langOrder) {
-    const idx = API_LANGS.indexOf(lang);
-    if (idx === -1) continue;
-    for (const c of allResults[idx]) {
-      if (c.id && !cardMap.has(c.id)) {
-        cardMap.set(c.id, c);
-      }
+  // Try to find the equivalent name in the other language for cross-search
+  const searchNames = new Set([query.toLowerCase()]);
+  if (cardsFR.length > 0) {
+    // We have FR results — find EN equivalent via matching IDs
+    for (const frCard of cardsFR.slice(0, 3)) {
+      const enMatch = cardsEN.find(e => e.id === frCard.id);
+      if (enMatch && enMatch.name) searchNames.add(enMatch.name.toLowerCase());
     }
+  }
+  if (cardsEN.length > 0) {
+    for (const enCard of cardsEN.slice(0, 3)) {
+      if (enCard.name) searchNames.add(enCard.name.toLowerCase());
+    }
+  }
+
+  // Step 2: Search remaining languages with all known name variants
+  const otherLangs = API_LANGS.filter(l => l !== 'fr' && l !== 'en');
+  const otherSearches = [];
+  for (const lang of otherLangs) {
+    for (const name of searchNames) {
+      otherSearches.push(fetchCardsFromLang(lang, name));
+    }
+  }
+  const otherResults = await Promise.all(otherSearches);
+
+  // Step 3: Merge all results, deduplicate by card ID, FR priority
+  const cardMap = new Map();
+  // FR first
+  for (const c of cardsFR) { if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c); }
+  // EN second
+  for (const c of cardsEN) { if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c); }
+  // Others
+  for (const batch of otherResults) {
+    for (const c of batch) { if (c.id && !cardMap.has(c.id)) cardMap.set(c.id, c); }
   }
 
   const allCards = Array.from(cardMap.values());

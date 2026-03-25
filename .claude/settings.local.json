@@ -22,7 +22,14 @@
       "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(d.get\\(''''id'''',''''''''\\),d.get\\(''''name'''',''''''''\\)\\) for d in data]\")",
       "Bash(curl -s https://api.tcgdex.net/v2/en/sets)",
       "Bash(curl -s \"https://api.tcgdex.net/v2/en/series\")",
-      "Bash(curl -s \"https://api.tcgdex.net/v2/en/series/tcgp\")"
+      "Bash(curl -s \"https://api.tcgdex.net/v2/en/series/tcgp\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Pikachu&pagination:itemsPerPage=5\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:ピカチュウ&pagination:itemsPerPage=5\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?pagination:itemsPerPage=10\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Snorlax&pagination:itemsPerPage=5\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Dracaufeu&pagination:itemsPerPage=5\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Pikachu&pagination:itemsPerPage=3\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Eevee&pagination:itemsPerPage=3\")"
     ]
   }
 }
