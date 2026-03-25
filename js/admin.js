@@ -242,12 +242,10 @@ function openCardModal(index = null) {
 
       <!-- Custom image upload -->
       <div id="modalCustomSection" style="display:none;">
-        <div class="image-upload-area" id="customUploadArea">
-          <div id="customUploadContent">
-            ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt=""><p style="margin-top:8px;">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
-          </div>
-          <input type="file" id="customFileInput" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+        <div id="customUploadContent" class="image-upload-area" onclick="document.getElementById('customFileInput').click();">
+          ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt="" style="max-height:180px;margin:0 auto;border-radius:8px;"><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
         </div>
+        <input type="file" id="customFileInput" accept="image/*" style="display:none;">
       </div>
 
       <!-- Card form -->
@@ -425,7 +423,12 @@ async function selectApiCard(el, id) {
 function initCustomUpload() {
   const input = document.getElementById('customFileInput');
   if (!input) return;
-  input.addEventListener('change', function() {
+
+  // Remove any previous listeners by cloning
+  const fresh = input.cloneNode(true);
+  input.parentNode.replaceChild(fresh, input);
+
+  fresh.addEventListener('change', function() {
     const file = this.files[0];
     if (!file) return;
 
@@ -435,8 +438,8 @@ function initCustomUpload() {
       const content = document.getElementById('customUploadContent');
       if (content) {
         content.innerHTML = `
-          <img src="${customImageData}" alt="Preview" style="max-height:180px;margin:0 auto;border-radius:8px;">
-          <p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>
+          <img src="${customImageData}" alt="Preview" style="max-height:200px;margin:0 auto;border-radius:8px;pointer-events:none;">
+          <p style="margin-top:10px;font-size:0.8rem;color:var(--text-muted);pointer-events:none;">Cliquer pour changer l'image</p>
         `;
       }
     };

@@ -134,9 +134,15 @@ const TCGdex = {
 };
 
 // ─── Build HTML for admin listings ───
+// Store listings globally for cart reference
+window._shopListings = [];
+
 function buildListingHTML(listing, index) {
   const condClassMap = { 'Mint':'condition-mint','Near Mint':'condition-nm','Excellent':'condition-ex','Good':'condition-good','Played':'condition-played','Poor':'condition-played' };
   const cc = condClassMap[listing.condition] || 'condition-nm';
+
+  // Store listing in global array so we can reference it from onclick without inline data
+  window._shopListings[index] = listing;
 
   return `
     <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}">
@@ -156,12 +162,28 @@ function buildListingHTML(listing, index) {
         </div>
         <div class="poke-card-footer">
           <div class="poke-card-price">${parseFloat(listing.price).toFixed(2)}&nbsp;€</div>
-          <button class="add-cart-btn" onclick="event.stopPropagation();addToCartAPI('listing-${index}','${listing.name.replace(/'/g,"\\'")}','${(listing.set||'').replace(/'/g,"\\'")}',${listing.price},'${listing.image || ''}')" title="Ajouter au panier">
+          <button class="add-cart-btn" onclick="event.stopPropagation();addListingToCart(${index})" title="Ajouter au panier">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
           </button>
         </div>
       </div>
     </div>`;
+}
+
+function addListingToCart(index) {
+  const listing = window._shopListings[index];
+  if (!listing) return;
+  cart.push({
+    id: 'listing-' + index,
+    name: listing.name,
+    set: listing.set || '',
+    price: parseFloat(listing.price),
+    image: listing.image || '',
+  });
+  saveCart();
+  updateCartCount();
+  renderCartItems();
+  showToast(`${listing.name} ajouté au panier`);
 }
 
 // ─── Get admin listings from localStorage ───

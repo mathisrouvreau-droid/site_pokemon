@@ -147,12 +147,23 @@
       }
 
       grid.innerHTML = html || '<p style="color:var(--text-muted);">Chargement impossible.</p>';
-      }
     }
 
     async function loadAllCards() {
       const grid = document.getElementById('allcardsGrid');
       showLoading(grid, perPage);
+
+      // Always show admin listings at the top on page 1
+      const listings = getAdminListings();
+      let listingsHTML = '';
+      if (currentPage === 1 && listings.length > 0) {
+        // Filter admin listings based on search
+        const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
+        const filtered = searchVal
+          ? listings.filter(l => l.name.toLowerCase().includes(searchVal))
+          : listings;
+        listingsHTML = filtered.map((l, i) => buildListingHTML(l, i)).join('');
+      }
 
       const params = { page: currentPage, itemsPerPage: perPage };
 
@@ -166,10 +177,12 @@
       if (searchVal) params.name = searchVal;
 
       const cards = await TCGdex.getCards(params);
+      const apiHTML = (cards && cards.length) ? cards.map(c => TCGdex.buildCardHTML(c)).join('') : '';
 
-      if (cards && cards.length) {
-        grid.innerHTML = cards.map(c => TCGdex.buildCardHTML(c)).join('');
-        buildPagination(cards.length);
+      const combined = listingsHTML + apiHTML;
+      if (combined) {
+        grid.innerHTML = combined;
+        buildPagination(cards ? cards.length : 0);
       } else {
         grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucune carte trouvée.</p>';
         document.getElementById('paginationTop').innerHTML = '';
