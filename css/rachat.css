@@ -1,6 +1,8 @@
 /* ═══════════════════════════════════════
-   RACHAT PAGE
+   RACHAT PAGE — Liquid Glass
    ═══════════════════════════════════════ */
+
+/* Hero */
 .rachat-hero {
   padding: 60px 0 40px;
   text-align: center;
@@ -26,13 +28,33 @@
   align-items: start;
 }
 
-/* Form */
+/* Form — Glass card */
 .rachat-form {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg);
   padding: 40px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
 }
+.rachat-form::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(77, 201, 246, 0.03) 0%,
+    rgba(168, 85, 247, 0.02) 50%,
+    rgba(249, 115, 22, 0.02) 100%
+  );
+  pointer-events: none;
+}
+.rachat-form > * { position: relative; }
+
 .rachat-form-title {
   font-family: var(--font-display);
   font-size: 1.4rem;
@@ -52,8 +74,9 @@
   width: 100%;
   padding: 14px 18px;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
   color: var(--text-primary);
   font-size: 0.95rem;
   outline: none;
@@ -61,7 +84,7 @@
 }
 .form-input:focus {
   border-color: var(--holo-1);
-  box-shadow: 0 0 0 3px rgba(77, 201, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(77, 201, 246, 0.1), 0 0 16px rgba(77, 201, 246, 0.06);
 }
 .form-input::placeholder { color: var(--text-muted); }
 textarea.form-input { resize: vertical; min-height: 120px; }
@@ -69,8 +92,9 @@ textarea.form-input { resize: vertical; min-height: 120px; }
   width: 100%;
   padding: 14px 18px;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
   color: var(--text-primary);
   font-size: 0.95rem;
   outline: none;
@@ -83,23 +107,25 @@ textarea.form-input { resize: vertical; min-height: 120px; }
 }
 .form-select:focus {
   border-color: var(--holo-1);
-  box-shadow: 0 0 0 3px rgba(77, 201, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(77, 201, 246, 0.1), 0 0 16px rgba(77, 201, 246, 0.06);
 }
 
-/* Photo upload */
+/* Photo upload — Glass zone */
 .photo-upload-zone {
-  border: 2px dashed var(--border);
+  border: 2px dashed rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: 40px;
   text-align: center;
   cursor: pointer;
   transition: var(--transition);
-  background: var(--bg-input);
+  background: rgba(255, 255, 255, 0.015);
+  backdrop-filter: blur(12px);
 }
 .photo-upload-zone:hover,
 .photo-upload-zone.dragover {
   border-color: var(--holo-1);
-  background: rgba(77, 201, 246, 0.03);
+  background: rgba(77, 201, 246, 0.04);
+  box-shadow: 0 0 20px rgba(77, 201, 246, 0.06);
 }
 .upload-icon {
   width: 56px; height: 56px;
@@ -131,7 +157,8 @@ textarea.form-input { resize: vertical; min-height: 120px; }
   width: 80px; height: 80px;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 .photo-preview img {
   width: 100%; height: 100%;
@@ -154,6 +181,7 @@ textarea.form-input { resize: vertical; min-height: 120px; }
 }
 .photo-preview:hover .remove-photo { opacity: 1; }
 
+/* Submit button — Glass gradient */
 .submit-btn {
   width: 100%;
   padding: 16px;
@@ -166,21 +194,40 @@ textarea.form-input { resize: vertical; min-height: 120px; }
   cursor: pointer;
   transition: var(--transition);
   letter-spacing: 0.02em;
+  box-shadow: 0 4px 20px rgba(77, 201, 246, 0.15);
 }
 .submit-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(77, 201, 246, 0.25);
 }
 
-/* Info sidebar */
+/* Info sidebar — Glass cards */
 .rachat-info { position: sticky; top: 100px; }
 .info-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg);
   padding: 32px;
   margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
+.info-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    160deg,
+    rgba(77, 201, 246, 0.025) 0%,
+    rgba(168, 85, 247, 0.015) 100%
+  );
+  pointer-events: none;
+}
+.info-card > * { position: relative; }
 .info-card h3 {
   font-family: var(--font-display);
   font-size: 1.2rem;
@@ -192,7 +239,7 @@ textarea.form-input { resize: vertical; min-height: 120px; }
   display: flex;
   gap: 16px;
   padding: 16px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 .process-step:last-child { border-bottom: none; }
 .step-number {
@@ -235,6 +282,7 @@ textarea.form-input { resize: vertical; min-height: 120px; }
   flex-shrink: 0;
 }
 
+/* ═══ RESPONSIVE ═══ */
 @media (max-width: 1024px) {
   .rachat-layout { grid-template-columns: 1fr; }
   .rachat-info { position: static; }
