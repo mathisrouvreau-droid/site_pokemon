@@ -396,32 +396,49 @@ function onProductTypeChange() {
   }
 }
 
-// ─── API SEARCH ───
+// ─── API SEARCH — all languages ───
+const API_LANGS = ['fr', 'en', 'ja', 'es', 'it', 'pt', 'de'];
+
+async function fetchCardsFromLang(lang, query) {
+  try {
+    const res = await fetch(`https://api.tcgdex.net/v2/${lang}/cards?name=like:${encodeURIComponent(query)}&pagination:itemsPerPage=50`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    // Tag each card with the language it was found in
+    return data.map(c => ({ ...c, _lang: lang }));
+  } catch { return []; }
+}
+
 async function searchApi() {
   const query = document.getElementById('apiSearchInput').value.trim();
   if (!query) return;
 
   const results = document.getElementById('apiResults');
-  results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours...</p>';
+  results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours dans toutes les langues...</p>';
 
-  // Search in FR (main) and EN (fallback) simultaneously
-  const [cardsFR, cardsEN] = await Promise.all([
-    TCGdex.getCards({ name: query, itemsPerPage: 50 }),
-    fetchEN(query),
-  ]);
+  // Search all languages in parallel
+  const allResults = await Promise.all(
+    API_LANGS.map(lang => fetchCardsFromLang(lang, query))
+  );
 
-  // Merge results, deduplicate by ID
-  const seen = new Set();
-  const allCards = [];
-  for (const c of [...(cardsFR || []), ...(cardsEN || [])]) {
-    if (c.id && !seen.has(c.id)) {
-      seen.add(c.id);
-      allCards.push(c);
+  // Merge & deduplicate by card ID, prefer FR > EN > others
+  const cardMap = new Map();
+  // Process FR first, then EN, then others so FR data takes priority
+  const langOrder = ['fr', 'en', 'ja', 'es', 'it', 'pt', 'de'];
+  for (const lang of langOrder) {
+    const idx = API_LANGS.indexOf(lang);
+    if (idx === -1) continue;
+    for (const c of allResults[idx]) {
+      if (c.id && !cardMap.has(c.id)) {
+        cardMap.set(c.id, c);
+      }
     }
   }
 
+  const allCards = Array.from(cardMap.values());
+
   if (allCards.length === 0) {
-    results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat pour "' + query + '". Essayez le nom français ou anglais.</p>';
+    results.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat pour "${query}". Essayez en français, anglais ou japonais.</p>`;
     return;
   }
 
@@ -430,41 +447,33 @@ async function searchApi() {
     const setName = c.set?.name || '';
     const rarity = c.rarity || '';
     const safeId = (c.id || '').replace(/'/g, "\\'");
+    const langFlag = { fr:'🇫🇷', en:'🇬🇧', ja:'🇯🇵', es:'🇪🇸', it:'🇮🇹', pt:'🇧🇷', de:'🇩🇪' }[c._lang] || '';
 
     return `
-      <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}')">
+      <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}', '${c._lang}')">
         ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);padding:4px;text-align:center;">${c.name || '?'}</div>`}
-        <div class="name">${c.name || '?'}</div>
+        <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">${langFlag}</span></div>
         <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
         <div class="check">✓</div>
       </div>`;
   }).join('');
 
-  results.insertAdjacentHTML('beforeend', `<p style="font-size:0.7rem;color:var(--text-muted);padding:8px 4px;grid-column:1/-1;">${allCards.length} résultat(s) trouvé(s)</p>`);
+  results.insertAdjacentHTML('beforeend', `<p style="font-size:0.7rem;color:var(--text-muted);padding:8px 4px;grid-column:1/-1;">${allCards.length} résultat(s) trouvé(s) dans ${API_LANGS.length} langues</p>`);
 }
 
-// Fetch from English API endpoint
-async function fetchEN(query) {
-  try {
-    const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=like:${encodeURIComponent(query)}&pagination:itemsPerPage=50`);
-    if (!res.ok) return [];
-    return await res.json();
-  } catch { return []; }
-}
-
-async function selectApiCard(el, id) {
+async function selectApiCard(el, id, sourceLang = 'fr') {
   // Deselect others
   document.querySelectorAll('.api-result-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
 
-  // Fetch full card detail — try FR first, fallback to EN
+  // Fetch full card detail — try source language first, then FR, then EN
   el.style.opacity = '0.6';
-  let detail = await TCGdex.getCard(id);
-  if (!detail) {
-    // Try English endpoint
+  let detail = null;
+  const tryLangs = [sourceLang, 'fr', 'en', ...API_LANGS].filter((v, i, a) => a.indexOf(v) === i);
+  for (const lang of tryLangs) {
     try {
-      const res = await fetch(`https://api.tcgdex.net/v2/en/cards/${id}`);
-      if (res.ok) detail = await res.json();
+      const res = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${id}`);
+      if (res.ok) { detail = await res.json(); break; }
     } catch {}
   }
   el.style.opacity = '1';

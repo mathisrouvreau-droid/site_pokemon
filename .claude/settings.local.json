@@ -7,7 +7,17 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(curl -s \"https://api.tcgdex.net/v2/fr/cards?name=like:Dracaufeu&pagination:itemsPerPage=5\")",
-      "Bash(curl -s \"https://api.tcgdex.net/v2/fr/cards?name=like:Pikachu&pagination:itemsPerPage=3\")"
+      "Bash(curl -s \"https://api.tcgdex.net/v2/fr/cards?name=like:Pikachu&pagination:itemsPerPage=3\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:リザードン&pagination:itemsPerPage=3\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/en/cards?pagination:itemsPerPage=1\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?pagination:itemsPerPage=3\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:Charizard&pagination:itemsPerPage=5\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:リザードン&pagination:itemsPerPage=5\")",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=like:pikachu&pagination:itemsPerPage=3\")",
+      "Bash(for lang:*)",
+      "Bash(do echo:*)",
+      "Bash(curl -s \"https://api.tcgdex.net/v2/$lang/cards?name=like:Charizard&pagination:itemsPerPage=2\")",
+      "Bash(done)"
     ]
   }
 }
