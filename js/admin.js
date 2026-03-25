@@ -242,10 +242,11 @@ function openCardModal(index = null) {
 
       <!-- Custom image upload -->
       <div id="modalCustomSection" style="display:none;">
-        <div id="customUploadContent" class="image-upload-area" onclick="document.getElementById('customFileInput').click();">
-          ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt="" style="max-height:180px;margin:0 auto;border-radius:8px;"><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
+        <div id="customUploadZone" class="image-upload-area">
+          <div id="customUploadContent">
+            ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt="" style="max-height:180px;margin:0 auto;border-radius:8px;"><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
+          </div>
         </div>
-        <input type="file" id="customFileInput" accept="image/*" style="display:none;">
       </div>
 
       <!-- Card form -->
@@ -421,17 +422,49 @@ async function selectApiCard(el, id) {
 
 // ─── CUSTOM IMAGE ───
 function initCustomUpload() {
-  const input = document.getElementById('customFileInput');
-  if (!input) return;
+  const zone = document.getElementById('customUploadZone');
+  if (!zone) return;
 
-  // Remove any previous listeners by cloning
-  const fresh = input.cloneNode(true);
-  input.parentNode.replaceChild(fresh, input);
+  // Create a hidden file input and keep a reference
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.display = 'none';
+  zone.appendChild(fileInput);
 
-  fresh.addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) return;
+  // Click zone → open file picker
+  zone.addEventListener('click', () => {
+    fileInput.click();
+  });
 
+  // Drag & drop
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.style.borderColor = 'var(--holo-1)';
+  });
+  zone.addEventListener('dragleave', () => {
+    zone.style.borderColor = '';
+  });
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.style.borderColor = '';
+    if (e.dataTransfer.files.length) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  // File selected
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) {
+      processFile(fileInput.files[0]);
+    }
+  });
+
+  function processFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner un fichier image.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       customImageData = e.target.result;
@@ -444,7 +477,9 @@ function initCustomUpload() {
       }
     };
     reader.readAsDataURL(file);
-  });
+    // Reset so same file can be selected again
+    fileInput.value = '';
+  }
 }
 
 // ─── SAVE CARD ───

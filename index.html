@@ -184,13 +184,19 @@
       grid.innerHTML = recent.map(set => TCGdex.buildSetHTML(set)).join('');
     }
 
-    // ─── FEATURED (real cards from API) ───
-    async function buildFeatured() {
+    // ─── FEATURED (admin listings only) ───
+    function buildFeatured() {
       const grid = document.getElementById('featuredGrid');
-      showLoading(grid, 4);
-      const cards = await TCGdex.getCards({ itemsPerPage: 4, sort: 'name' });
-      if (!cards || !cards.length) { grid.innerHTML = '<p style="color:var(--text-muted)">Impossible de charger les cartes.</p>'; return; }
-      grid.innerHTML = cards.map(c => TCGdex.buildCardHTML(c)).join('');
+      const listings = getAdminListings();
+
+      if (listings.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucune carte en vente pour le moment.</p>';
+        return;
+      }
+
+      // Show top 4 most expensive
+      const sorted = [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+      grid.innerHTML = sorted.slice(0, 4).map((l, i) => buildListingHTML(l, i)).join('');
     }
 
     // ─── INIT ───

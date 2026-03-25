@@ -76,30 +76,24 @@
     let currentPage = 1;
     const perPage = 20;
 
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', () => {
       injectFooter();
 
-      // Check URL for set filter
-      const urlParams = new URLSearchParams(window.location.search);
-      const presetSet = urlParams.get('set');
+      // Build set filter from existing listings
+      const listings = getAdminListings();
+      const setSelect = document.getElementById('setFilter');
+      const uniqueSets = [...new Set(listings.map(l => l.set).filter(Boolean))];
+      uniqueSets.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s;
+        setSelect.appendChild(opt);
+      });
 
-      // Load sets for filter dropdown
-      const sets = await TCGdex.getSets();
-      if (sets) {
-        const setSelect = document.getElementById('setFilter');
-        sets.slice(-30).reverse().forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.id;
-          opt.textContent = s.name;
-          if (presetSet && s.id === presetSet) opt.selected = true;
-          setSelect.appendChild(opt);
-        });
-      }
-
-      // Load rarity options
-      const rarities = ['Commune', 'Non Commune', 'Rare', 'Holo Rare', 'Ultra Rare', 'Secret Rare', 'Illustration Rare', 'Special Art Rare', 'Double Rare', 'Art Rare'];
+      // Build rarity filter from existing listings
       const raritySelect = document.getElementById('rarityFilter');
-      rarities.forEach(r => {
+      const uniqueRarities = [...new Set(listings.map(l => l.rarity).filter(Boolean))];
+      uniqueRarities.forEach(r => {
         const opt = document.createElement('option');
         opt.value = r;
         opt.textContent = r;
@@ -117,85 +111,78 @@
       loadAllCards();
     });
 
-    async function loadNouveautes() {
+    function loadNouveautes() {
       const row = document.getElementById('nouveautesRow');
-      showLoading(row, 6);
-
-      // Show admin listings first (newest), then API cards
       const listings = getAdminListings();
-      let html = listings.slice(0, 6).map((l, i) => buildListingHTML(l, i)).join('');
 
-      if (listings.length < 6) {
-        const cards = await TCGdex.getCards({ itemsPerPage: 10 - listings.length, sort: 'name', order: 'ASC' });
-        if (cards) html += cards.map(c => TCGdex.buildCardHTML(c)).join('');
+      if (listings.length === 0) {
+        row.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Aucune carte disponible pour le moment.</p>';
+        return;
       }
 
-      row.innerHTML = html || '<p style="color:var(--text-muted);padding:20px;">Aucune carte disponible.</p>';
+      // Show the most recent listings (newest first)
+      row.innerHTML = listings.slice(0, 10).map((l, i) => buildListingHTML(l, i)).join('');
     }
 
-    async function loadBestsellers() {
+    function loadBestsellers() {
       const grid = document.getElementById('bestsellersGrid');
-      showLoading(grid, 4);
-
-      // Show admin listings as "bestsellers" + API
       const listings = getAdminListings();
-      let html = listings.slice(0, 4).map((l, i) => buildListingHTML(l, i)).join('');
 
-      if (listings.length < 4) {
-        const cards = await TCGdex.getCards({ itemsPerPage: 4 - listings.length, sort: 'name', order: 'DESC' });
-        if (cards) html += cards.map(c => TCGdex.buildCardHTML(c)).join('');
+      if (listings.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-muted);">Aucune carte en vente.</p>';
+        return;
       }
 
-      grid.innerHTML = html || '<p style="color:var(--text-muted);">Chargement impossible.</p>';
+      // Show top 4 most expensive as "best sellers"
+      const sorted = [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+      grid.innerHTML = sorted.slice(0, 4).map((l, i) => buildListingHTML(l, i)).join('');
     }
 
-    async function loadAllCards() {
+    function loadAllCards() {
       const grid = document.getElementById('allcardsGrid');
-      showLoading(grid, perPage);
+      let listings = getAdminListings();
 
-      // Always show admin listings at the top on page 1
-      const listings = getAdminListings();
-      let listingsHTML = '';
-      if (currentPage === 1 && listings.length > 0) {
-        // Filter admin listings based on search
-        const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
-        const filtered = searchVal
-          ? listings.filter(l => l.name.toLowerCase().includes(searchVal))
-          : listings;
-        listingsHTML = filtered.map((l, i) => buildListingHTML(l, i)).join('');
+      // Apply search filter
+      const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
+      if (searchVal) {
+        listings = listings.filter(l => l.name.toLowerCase().includes(searchVal));
       }
 
-      const params = { page: currentPage, itemsPerPage: perPage };
-
-      const setVal = document.getElementById('setFilter').value;
-      if (setVal !== 'all') params.set = setVal;
-
+      // Apply rarity filter
       const rarityVal = document.getElementById('rarityFilter').value;
-      if (rarityVal !== 'all') params.rarity = rarityVal;
+      if (rarityVal !== 'all') {
+        listings = listings.filter(l => (l.rarity || '').toLowerCase().includes(rarityVal.toLowerCase()));
+      }
 
-      const searchVal = document.getElementById('searchInput').value.trim();
-      if (searchVal) params.name = searchVal;
+      // Apply set filter
+      const setVal = document.getElementById('setFilter').value;
+      if (setVal !== 'all') {
+        listings = listings.filter(l => (l.set || '').toLowerCase().includes(setVal.toLowerCase()));
+      }
 
-      const cards = await TCGdex.getCards(params);
-      const apiHTML = (cards && cards.length) ? cards.map(c => TCGdex.buildCardHTML(c)).join('') : '';
+      // Pagination
+      const total = listings.length;
+      const start = (currentPage - 1) * perPage;
+      const paged = listings.slice(start, start + perPage);
 
-      const combined = listingsHTML + apiHTML;
-      if (combined) {
-        grid.innerHTML = combined;
-        buildPagination(cards ? cards.length : 0);
+      if (paged.length > 0) {
+        grid.innerHTML = paged.map((l, i) => buildListingHTML(l, start + i)).join('');
+        buildPagination(total);
       } else {
         grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucune carte trouvée.</p>';
         document.getElementById('paginationTop').innerHTML = '';
       }
     }
 
-    function buildPagination(count) {
+    function buildPagination(total) {
       const pag = document.getElementById('paginationTop');
+      const totalPages = Math.ceil(total / perPage);
+      if (totalPages <= 1) { pag.innerHTML = ''; return; }
       const hasPrev = currentPage > 1;
-      const hasNext = count >= perPage;
+      const hasNext = currentPage < totalPages;
       pag.innerHTML = `
         <button class="filter-btn" ${!hasPrev ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage--;loadAllCards();window.scrollTo({top:document.querySelector('.allcards-section').offsetTop-100,behavior:'smooth'})">← Précédent</button>
-        <span style="font-size:0.85rem;color:var(--text-secondary);">Page ${currentPage}</span>
+        <span style="font-size:0.85rem;color:var(--text-secondary);">Page ${currentPage} / ${totalPages}</span>
         <button class="filter-btn" ${!hasNext ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage++;loadAllCards();window.scrollTo({top:document.querySelector('.allcards-section').offsetTop-100,behavior:'smooth'})">Suivant →</button>
       `;
     }
