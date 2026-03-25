@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Boutique — Holofoil</title>
-  <meta name="description" content="Parcourez notre collection de cartes Pokémon premium : nouveautés, best-sellers et cartes à l'unité.">
+  <meta name="description" content="Parcourez notre collection de cartes Pokémon premium : cartes à l'unité, boosters, ETB, coffrets et plus.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
@@ -22,63 +22,154 @@
       </div>
     </section>
 
-    <!-- ═══ NOUVEAUTÉS ═══ -->
-    <section class="nouveautes-section">
+    <!-- ═══ CATEGORY TABS ═══ -->
+    <section class="category-tabs-section">
       <div class="container">
-        <div class="glass-panel">
-          <div class="section-header">
-            <p class="section-label">Vient d'arriver</p>
-            <h2 class="section-title">Nouveautés</h2>
+        <div class="category-tabs glass-panel" id="categoryTabs">
+          <button class="cat-tab active" data-cat="all" onclick="switchCategory('all')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+            Tout
+          </button>
+          <button class="cat-tab" data-cat="cards" onclick="switchCategory('cards')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+            Cartes
+          </button>
+          <button class="cat-tab" data-cat="sealed" onclick="switchCategory('sealed')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>
+            Produits Scellés
+          </button>
+          <div class="cat-tab-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+            <input type="text" id="searchInput" placeholder="Rechercher..." onkeydown="if(event.key==='Enter'){currentPage=1;renderCurrentView();}">
           </div>
-          <div class="scroll-row" id="nouveautesRow"></div>
         </div>
       </div>
     </section>
 
-    <!-- ═══ BEST SELLERS ═══ -->
-    <section class="bestsellers-section">
-      <div class="container">
-        <div class="glass-panel">
-          <div class="section-header">
-            <p class="section-label">Populaire</p>
-            <h2 class="section-title">Les Plus Vendus</h2>
+    <!-- ═══ VIEW: ALL (Nouveautés + Best sellers + Tout) ═══ -->
+    <div id="viewAll">
+      <!-- Nouveautés -->
+      <section class="nouveautes-section">
+        <div class="container">
+          <div class="glass-panel">
+            <div class="section-header">
+              <p class="section-label">Vient d'arriver</p>
+              <h2 class="section-title">Nouveautés</h2>
+            </div>
+            <div class="scroll-row" id="nouveautesRow"></div>
           </div>
-          <div class="bestsellers-grid" id="bestsellersGrid"></div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ═══ ALL CARDS ═══ -->
-    <section class="allcards-section">
-      <div class="container">
-        <div class="section-header">
-          <p class="section-label">Collection complète</p>
-          <h2 class="section-title">Cartes à l'unité</h2>
+      <!-- Best sellers -->
+      <section class="bestsellers-section">
+        <div class="container">
+          <div class="glass-panel">
+            <div class="section-header">
+              <p class="section-label">Populaire</p>
+              <h2 class="section-title">Les Plus Vendus</h2>
+            </div>
+            <div class="bestsellers-grid" id="bestsellersGrid"></div>
+          </div>
         </div>
-        <div class="filter-bar" id="filterBar">
-          <select class="filter-select" id="typeFilter">
-            <option value="all">Tous les types</option>
-            <option value="Carte">Cartes</option>
-            <option value="Booster">Boosters</option>
-            <option value="ETB">ETB</option>
-            <option value="Coffret">Coffrets</option>
-            <option value="Display">Displays</option>
-            <option value="Bundle">Bundles</option>
-            <option value="Autre">Autre</option>
-          </select>
-          <select class="filter-select" id="setFilter">
-            <option value="all">Tous les sets</option>
-          </select>
-          <select class="filter-select" id="rarityFilter">
-            <option value="all">Toutes raretés</option>
-          </select>
-          <input type="text" class="filter-select" id="searchInput" placeholder="Rechercher un produit..." style="flex:1;min-width:200px;">
-          <button class="filter-btn active" id="searchBtn" onclick="loadAllCards()">Rechercher</button>
+      </section>
+
+      <!-- All products -->
+      <section class="allcards-section">
+        <div class="container">
+          <div class="section-header">
+            <p class="section-label">Catalogue complet</p>
+            <h2 class="section-title">Tous les produits</h2>
+          </div>
+          <div class="sub-filter-bar" id="allFilterBar">
+            <select class="filter-select" id="allSetFilter"><option value="all">Tous les sets</option></select>
+            <select class="filter-select" id="allTypeFilter">
+              <option value="all">Tous les types</option>
+              <option value="Carte">Cartes</option>
+              <option value="Booster">Boosters</option>
+              <option value="ETB">ETB</option>
+              <option value="Coffret">Coffrets</option>
+              <option value="Display">Displays</option>
+              <option value="Bundle">Bundles</option>
+            </select>
+          </div>
+          <div id="allPagination" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
+          <div class="allcards-grid" id="allGrid"></div>
         </div>
-        <div id="paginationTop" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
-        <div class="allcards-grid" id="allcardsGrid"></div>
-      </div>
-    </section>
+      </section>
+    </div>
+
+    <!-- ═══ VIEW: CARDS ONLY ═══ -->
+    <div id="viewCards" style="display:none;">
+      <section class="allcards-section">
+        <div class="container">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+              <p class="section-label" style="margin:0;">Collection</p>
+            </div>
+            <h2 class="section-title">Cartes à l'unité</h2>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:8px;">Toutes nos cartes Pokémon, vérifiées et gradées.</p>
+          </div>
+          <div class="sub-filter-bar" id="cardsFilterBar">
+            <select class="filter-select" id="cardsSetFilter"><option value="all">Tous les sets</option></select>
+            <select class="filter-select" id="cardsRarityFilter"><option value="all">Toutes raretés</option></select>
+            <select class="filter-select" id="cardsConditionFilter">
+              <option value="all">Tous états</option>
+              <option value="Mint">Mint</option>
+              <option value="Near Mint">Near Mint</option>
+              <option value="Excellent">Excellent</option>
+              <option value="Good">Good</option>
+              <option value="Played">Played</option>
+            </select>
+            <select class="filter-select" id="cardsSortFilter">
+              <option value="recent">Plus récentes</option>
+              <option value="price-asc">Prix croissant</option>
+              <option value="price-desc">Prix décroissant</option>
+              <option value="name">Nom A-Z</option>
+            </select>
+          </div>
+          <div id="cardsPagination" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
+          <div class="allcards-grid" id="cardsGrid"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ VIEW: SEALED PRODUCTS ═══ -->
+    <div id="viewSealed" style="display:none;">
+      <section class="allcards-section">
+        <div class="container">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+              <p class="section-label" style="margin:0;">Produits</p>
+            </div>
+            <h2 class="section-title">Produits Scellés</h2>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:8px;">Boosters, ETB, Coffrets, Displays et plus encore.</p>
+          </div>
+
+          <!-- Sealed sub-categories -->
+          <div class="sealed-cats" id="sealedCats">
+            <button class="sealed-cat-btn active" data-stype="all" onclick="switchSealedType('all')">Tout</button>
+            <button class="sealed-cat-btn" data-stype="Booster" onclick="switchSealedType('Booster')">Boosters</button>
+            <button class="sealed-cat-btn" data-stype="ETB" onclick="switchSealedType('ETB')">ETB</button>
+            <button class="sealed-cat-btn" data-stype="Coffret" onclick="switchSealedType('Coffret')">Coffrets</button>
+            <button class="sealed-cat-btn" data-stype="Display" onclick="switchSealedType('Display')">Displays</button>
+            <button class="sealed-cat-btn" data-stype="Bundle" onclick="switchSealedType('Bundle')">Bundles</button>
+          </div>
+
+          <div class="sub-filter-bar" id="sealedFilterBar">
+            <select class="filter-select" id="sealedSetFilter"><option value="all">Tous les sets</option></select>
+            <select class="filter-select" id="sealedSortFilter">
+              <option value="recent">Plus récents</option>
+              <option value="price-asc">Prix croissant</option>
+              <option value="price-desc">Prix décroissant</option>
+              <option value="name">Nom A-Z</option>
+            </select>
+          </div>
+          <div id="sealedPagination" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
+          <div class="allcards-grid" id="sealedGrid"></div>
+        </div>
+      </section>
+    </div>
 
   </main>
 
@@ -89,122 +180,195 @@
   <script>
     let currentPage = 1;
     const perPage = 20;
+    let currentCategory = 'all';
+    let currentSealedType = 'all';
 
     document.addEventListener('DOMContentLoaded', () => {
       injectFooter();
-
-      // Build set filter from existing listings
-      const listings = getAdminListings();
-      const setSelect = document.getElementById('setFilter');
-      const uniqueSets = [...new Set(listings.map(l => l.set).filter(Boolean))];
-      uniqueSets.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = s;
-        setSelect.appendChild(opt);
-      });
-
-      // Build rarity filter from existing listings
-      const raritySelect = document.getElementById('rarityFilter');
-      const uniqueRarities = [...new Set(listings.map(l => l.rarity).filter(Boolean))];
-      uniqueRarities.forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r;
-        opt.textContent = r;
-        raritySelect.appendChild(opt);
-      });
-
-      // Event listeners
-      document.getElementById('typeFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
-      document.getElementById('setFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
-      document.getElementById('rarityFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
-      document.getElementById('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { currentPage = 1; loadAllCards(); } });
-
-      // Load sections
-      loadNouveautes();
-      loadBestsellers();
-      loadAllCards();
+      buildFilters();
+      attachFilterListeners();
+      switchCategory('all');
     });
 
+    // ─── BUILD DYNAMIC FILTERS ───
+    function buildFilters() {
+      const listings = getAdminListings();
+      const uniqueSets = [...new Set(listings.map(l => l.set).filter(Boolean))];
+      const uniqueRarities = [...new Set(listings.filter(l => (l.type || 'Carte') === 'Carte').map(l => l.rarity).filter(Boolean))];
+
+      // Populate all set filters
+      ['allSetFilter', 'cardsSetFilter', 'sealedSetFilter'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        uniqueSets.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s; opt.textContent = s;
+          sel.appendChild(opt);
+        });
+      });
+
+      // Cards rarity filter
+      const rarSel = document.getElementById('cardsRarityFilter');
+      if (rarSel) {
+        uniqueRarities.forEach(r => {
+          const opt = document.createElement('option');
+          opt.value = r; opt.textContent = r;
+          rarSel.appendChild(opt);
+        });
+      }
+    }
+
+    function attachFilterListeners() {
+      // All view
+      ['allSetFilter', 'allTypeFilter'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadAllProducts(); });
+      });
+      // Cards view
+      ['cardsSetFilter', 'cardsRarityFilter', 'cardsConditionFilter', 'cardsSortFilter'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadCards(); });
+      });
+      // Sealed view
+      ['sealedSetFilter', 'sealedSortFilter'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadSealed(); });
+      });
+    }
+
+    // ─── CATEGORY SWITCH ───
+    function switchCategory(cat) {
+      currentCategory = cat;
+      currentPage = 1;
+      document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+      document.getElementById('viewAll').style.display = cat === 'all' ? '' : 'none';
+      document.getElementById('viewCards').style.display = cat === 'cards' ? '' : 'none';
+      document.getElementById('viewSealed').style.display = cat === 'sealed' ? '' : 'none';
+      renderCurrentView();
+    }
+
+    function switchSealedType(stype) {
+      currentSealedType = stype;
+      currentPage = 1;
+      document.querySelectorAll('.sealed-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.stype === stype));
+      loadSealed();
+    }
+
+    function renderCurrentView() {
+      if (currentCategory === 'all') {
+        loadNouveautes();
+        loadBestsellers();
+        loadAllProducts();
+      } else if (currentCategory === 'cards') {
+        loadCards();
+      } else if (currentCategory === 'sealed') {
+        loadSealed();
+      }
+    }
+
+    // ─── SEARCH ───
+    function getSearchQuery() {
+      return document.getElementById('searchInput').value.trim().toLowerCase();
+    }
+
+    function applySearch(listings) {
+      const q = getSearchQuery();
+      return q ? listings.filter(l => l.name.toLowerCase().includes(q) || (l.set || '').toLowerCase().includes(q)) : listings;
+    }
+
+    function applySorting(listings, sortId) {
+      const sort = document.getElementById(sortId)?.value || 'recent';
+      if (sort === 'price-asc') return [...listings].sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+      if (sort === 'price-desc') return [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+      if (sort === 'name') return [...listings].sort((a, b) => a.name.localeCompare(b.name));
+      return listings; // recent = default order
+    }
+
+    // ─── ALL VIEW ───
     function loadNouveautes() {
       const row = document.getElementById('nouveautesRow');
-      const listings = getAdminListings();
-
-      if (listings.length === 0) {
-        row.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Aucune carte disponible pour le moment.</p>';
-        return;
-      }
-
-      // Show the most recent listings (newest first)
+      let listings = applySearch(getAdminListings());
+      if (listings.length === 0) { row.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Aucun produit disponible.</p>'; return; }
       row.innerHTML = listings.slice(0, 10).map((l, i) => buildListingHTML(l, i)).join('');
     }
 
     function loadBestsellers() {
       const grid = document.getElementById('bestsellersGrid');
-      const listings = getAdminListings();
-
-      if (listings.length === 0) {
-        grid.innerHTML = '<p style="color:var(--text-muted);">Aucune carte en vente.</p>';
-        return;
-      }
-
-      // Show top 4 most expensive as "best sellers"
+      let listings = applySearch(getAdminListings());
+      if (listings.length === 0) { grid.innerHTML = '<p style="color:var(--text-muted);">Aucun produit en vente.</p>'; return; }
       const sorted = [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
       grid.innerHTML = sorted.slice(0, 4).map((l, i) => buildListingHTML(l, i)).join('');
     }
 
-    function loadAllCards() {
-      const grid = document.getElementById('allcardsGrid');
-      let listings = getAdminListings();
+    function loadAllProducts() {
+      const grid = document.getElementById('allGrid');
+      let listings = applySearch(getAdminListings());
 
-      // Apply type filter
-      const typeVal = document.getElementById('typeFilter').value;
-      if (typeVal !== 'all') {
-        listings = listings.filter(l => (l.type || 'Carte') === typeVal);
+      const setVal = document.getElementById('allSetFilter').value;
+      if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
+
+      const typeVal = document.getElementById('allTypeFilter').value;
+      if (typeVal !== 'all') listings = listings.filter(l => (l.type || 'Carte') === typeVal);
+
+      paginate(listings, grid, 'allPagination', loadAllProducts);
+    }
+
+    // ─── CARDS VIEW ───
+    function loadCards() {
+      const grid = document.getElementById('cardsGrid');
+      let listings = applySearch(getAdminListings()).filter(l => (l.type || 'Carte') === 'Carte');
+
+      const setVal = document.getElementById('cardsSetFilter').value;
+      if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
+
+      const rarVal = document.getElementById('cardsRarityFilter').value;
+      if (rarVal !== 'all') listings = listings.filter(l => l.rarity === rarVal);
+
+      const condVal = document.getElementById('cardsConditionFilter').value;
+      if (condVal !== 'all') listings = listings.filter(l => l.condition === condVal);
+
+      listings = applySorting(listings, 'cardsSortFilter');
+      paginate(listings, grid, 'cardsPagination', loadCards);
+    }
+
+    // ─── SEALED VIEW ───
+    function loadSealed() {
+      const grid = document.getElementById('sealedGrid');
+      let listings = applySearch(getAdminListings()).filter(l => (l.type || 'Carte') !== 'Carte');
+
+      if (currentSealedType !== 'all') {
+        listings = listings.filter(l => l.type === currentSealedType);
       }
 
-      // Apply search filter
-      const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
-      if (searchVal) {
-        listings = listings.filter(l => l.name.toLowerCase().includes(searchVal));
-      }
+      const setVal = document.getElementById('sealedSetFilter').value;
+      if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
 
-      // Apply rarity filter
-      const rarityVal = document.getElementById('rarityFilter').value;
-      if (rarityVal !== 'all') {
-        listings = listings.filter(l => (l.rarity || '').toLowerCase().includes(rarityVal.toLowerCase()));
-      }
+      listings = applySorting(listings, 'sealedSortFilter');
+      paginate(listings, grid, 'sealedPagination', loadSealed);
+    }
 
-      // Apply set filter
-      const setVal = document.getElementById('setFilter').value;
-      if (setVal !== 'all') {
-        listings = listings.filter(l => (l.set || '').toLowerCase().includes(setVal.toLowerCase()));
-      }
-
-      // Pagination
+    // ─── PAGINATION HELPER ───
+    function paginate(listings, grid, pagId, reloadFn) {
       const total = listings.length;
       const start = (currentPage - 1) * perPage;
       const paged = listings.slice(start, start + perPage);
 
       if (paged.length > 0) {
         grid.innerHTML = paged.map((l, i) => buildListingHTML(l, start + i)).join('');
-        buildPagination(total);
+        buildPagination(total, pagId, reloadFn);
       } else {
-        grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucune carte trouvée.</p>';
-        document.getElementById('paginationTop').innerHTML = '';
+        grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucun produit trouvé.</p>';
+        document.getElementById(pagId).innerHTML = '';
       }
     }
 
-    function buildPagination(total) {
-      const pag = document.getElementById('paginationTop');
+    function buildPagination(total, pagId, reloadFn) {
+      const pag = document.getElementById(pagId);
       const totalPages = Math.ceil(total / perPage);
       if (totalPages <= 1) { pag.innerHTML = ''; return; }
       const hasPrev = currentPage > 1;
       const hasNext = currentPage < totalPages;
       pag.innerHTML = `
-        <button class="filter-btn" ${!hasPrev ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage--;loadAllCards();window.scrollTo({top:document.querySelector('.allcards-section').offsetTop-100,behavior:'smooth'})">← Précédent</button>
+        <button class="filter-btn" ${!hasPrev ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage--;renderCurrentView();this.closest('section').scrollIntoView({behavior:'smooth',block:'start'})">← Précédent</button>
         <span style="font-size:0.85rem;color:var(--text-secondary);">Page ${currentPage} / ${totalPages}</span>
-        <button class="filter-btn" ${!hasNext ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage++;loadAllCards();window.scrollTo({top:document.querySelector('.allcards-section').offsetTop-100,behavior:'smooth'})">Suivant →</button>
+        <button class="filter-btn" ${!hasNext ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage++;renderCurrentView();this.closest('section').scrollIntoView({behavior:'smooth',block:'start'})">Suivant →</button>
       `;
     }
   </script>
