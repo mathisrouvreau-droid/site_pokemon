@@ -154,7 +154,7 @@ function buildListingHTML(listing, index) {
   window._shopListings[index] = listing;
 
   return `
-    <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}" data-type="${type}">
+    <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}" data-type="${type}" onclick="openListingDetail(${index})" style="cursor:pointer;">
       <div class="poke-card-img">
         ${type !== 'Carte' ? `<span class="card-badge hot" style="background:${typeColor};">${type}</span>` : ''}
         ${listing.image ? `<img src="${listing.image}" alt="${listing.name}" loading="lazy" style="width:100%;height:100%;object-fit:${objectFit};position:absolute;inset:0;">` : `
@@ -208,6 +208,105 @@ function addToCartAPI(id, name, setName, price, imgUrl) {
   updateCartCount();
   renderCartItems();
   showToast(`${name} ajouté au panier`);
+}
+
+// ─── Listing detail popup ───
+function openListingDetail(index) {
+  const listing = window._shopListings[index];
+  if (!listing) return;
+
+  // Remove existing
+  const existing = document.getElementById('listingModal');
+  if (existing) existing.remove();
+
+  const type = listing.type || 'Carte';
+  const condClassMap = { 'Neuf':'mint','Mint':'mint','Near Mint':'nm','Excellent':'ex','Good':'good','Played':'played','Poor':'played' };
+  const cc = condClassMap[listing.condition] || 'nm';
+  const typeColors = { 'Carte':'var(--holo-1)','Booster':'#f97316','ETB':'#a855f7','Coffret':'#22d3ee','Display':'#ec4899','Bundle':'#4ade80','Autre':'var(--text-muted)' };
+  const typeColor = typeColors[type] || 'var(--text-muted)';
+
+  const modal = document.createElement('div');
+  modal.id = 'listingModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);padding:20px;';
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+  const objectFit = (type === 'Carte') ? 'contain' : 'cover';
+
+  modal.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;max-width:860px;width:100%;max-height:90vh;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:0;animation:fadeInUp 0.3s ease;" onclick="event.stopPropagation()">
+      <!-- Image -->
+      <div style="padding:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);border-radius:20px 0 0 20px;min-height:300px;">
+        ${listing.image
+          ? `<img src="${listing.image}" alt="${listing.name}" style="max-width:100%;max-height:70vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.4);object-fit:${objectFit};">`
+          : `<div style="width:200px;height:280px;border-radius:12px;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.9rem;">Pas d'image</div>`
+        }
+      </div>
+      <!-- Info -->
+      <div style="padding:32px;overflow-y:auto;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:24px;">
+          <div style="flex:1;">
+            ${listing.set ? `<div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--holo-1);margin-bottom:8px;">${listing.set}</div>` : ''}
+            <h2 style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;line-height:1.3;">${listing.name}</h2>
+          </div>
+          <button onclick="document.getElementById('listingModal').remove()" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:none;color:var(--text-primary);cursor:pointer;font-size:1.1rem;flex-shrink:0;margin-left:12px;">✕</button>
+        </div>
+
+        <!-- Badges -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
+          <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;background:rgba(255,255,255,0.06);color:${typeColor};">${type}</span>
+          <span class="condition-badge condition-${cc}" style="font-size:0.7rem;">${listing.condition}</span>
+          ${listing.rarity ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${listing.rarity}</span>` : ''}
+        </div>
+
+        <!-- Price -->
+        <div style="font-family:var(--font-display);font-size:2rem;font-weight:800;margin-bottom:24px;">
+          ${parseFloat(listing.price).toFixed(2)}&nbsp;€
+        </div>
+
+        <!-- Description -->
+        ${listing.description ? `
+          <div style="margin-bottom:24px;">
+            <h4 style="font-size:0.8rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Description</h4>
+            <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap;">${listing.description}</p>
+          </div>
+        ` : ''}
+
+        <!-- Details -->
+        <div style="margin-bottom:28px;">
+          <h4 style="font-size:0.8rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;">Détails</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Type</div>
+              <div style="font-size:0.85rem;font-weight:600;">${type}</div>
+            </div>
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">État</div>
+              <div style="font-size:0.85rem;font-weight:600;">${listing.condition}</div>
+            </div>
+            ${listing.set ? `
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Extension</div>
+              <div style="font-size:0.85rem;font-weight:600;">${listing.set}</div>
+            </div>` : ''}
+            ${listing.rarity ? `
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Rareté</div>
+              <div style="font-size:0.85rem;font-weight:600;">${listing.rarity}</div>
+            </div>` : ''}
+          </div>
+        </div>
+
+        <!-- Add to cart button -->
+        <button onclick="event.stopPropagation();addListingToCart(${index});document.getElementById('listingModal').remove();" style="width:100%;padding:16px;border-radius:12px;font-size:1rem;font-weight:600;background:linear-gradient(135deg,#4dc9f6,#7c3aed);color:#fff;border:none;cursor:pointer;transition:0.3s ease;display:flex;align-items:center;justify-content:center;gap:10px;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(77,201,246,0.25)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+          Ajouter au panier
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
 }
 
 // ─── Card detail modal ───

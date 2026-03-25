@@ -808,9 +808,14 @@ img { max-width: 100%; display: block; }
     grid-template-columns: 1fr !important;
     max-height: 95vh;
   }
-  #cardModal > div > div:first-child {
+  #cardModal > div > div:first-child,
+  #listingModal > div > div:first-child {
     border-radius: 20px 20px 0 0 !important;
     padding: 20px !important;
     max-height: 40vh;
+  }
+  #listingModal > div {
+    grid-template-columns: 1fr !important;
+    max-height: 95vh;
   }
 }
