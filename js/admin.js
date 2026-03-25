@@ -403,34 +403,55 @@ const API_LANGS = ['fr', 'en', 'ja'];
 const TCGP_SET_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'B1', 'B1a', 'B2'];
 
 // FR → JA name translation for common Pokémon
-const FR_TO_JA = {
+// Keys must be lowercase, both with and without accents
+const _FR_JA_BASE = {
   'dracaufeu':'リザードン','pikachu':'ピカチュウ','mewtwo':'ミュウツー','mew':'ミュウ',
   'ronflex':'カビゴン','tortank':'カメックス','florizarre':'フシギバナ','evoli':'イーブイ',
-  'leviator':'ギャラドス','ectoplasma':'ゲンガー','dracolosse':'カイリュー','lucario':'ルカリオ',
-  'rayquaza':'レックウザ','lugia':'ルギア','sulfura':'ファイヤー','artikodin':'フリーザー',
-  'electhor':'サンダー','arceus':'アルセウス','dialga':'ディアルガ','palkia':'パルキア',
-  'giratina':'ギラティナ','gardevoir':'サーナイト','gallame':'エルレイド','tyranocif':'バンギラス',
+  'leviator':'ギャラドス','léviator':'ギャラドス',
+  'ectoplasma':'ゲンガー','dracolosse':'カイリュー','lucario':'ルカリオ',
+  'rayquaza':'レックウザ','lugia':'ルギア',
+  'sulfura':'ファイヤー','artikodin':'フリーザー','electhor':'サンダー',
+  'arceus':'アルセウス','dialga':'ディアルガ','palkia':'パルキア',
+  'giratina':'ギラティナ','gardevoir':'サーナイト','gallame':'エルレイド',
+  'tyranocif':'バンギラス',
   'mentali':'エーフィ','noctali':'ブラッキー','aquali':'シャワーズ','voltali':'サンダース',
   'pyroli':'ブースター','phyllali':'リーフィア','givrali':'グレイシア','nymphali':'ニンフィア',
-  'salamèche':'ヒトカゲ','reptincel':'リザード','carapuce':'ゼニガメ','carabaffe':'カメール',
-  'bulbizarre':'フシギダネ','herbizarre':'フシギソウ','raichu':'ライチュウ','magicarpe':'コイキング',
-  'metamorph':'メタモン','lokhlass':'ラプラス','dracolosse':'カイリュー','minidraco':'ミニリュウ',
-  'draco':'ハクリュー','abra':'ケーシィ','kadabra':'ユンゲラー','alakazam':'フーディン',
-  'machoc':'ワンリキー','machopeur':'ゴーリキー','mackogneur':'カイリキー','feunard':'キュウコン',
-  'goupix':'ロコン','caninos':'ガーディ','arcanin':'ウインディ','osselait':'カラカラ',
-  'ossatueur':'ガラガラ','elektek':'エレブー','magmar':'ブーバー','scarabrute':'カイロス',
-  'tauros':'ケンタロス','latios':'ラティオス','latias':'ラティアス','groudon':'グラードン',
-  'kyogre':'カイオーガ','deoxys':'デオキシス','darkrai':'ダークライ','cresselia':'クレセリア',
-  'reshiram':'レシラム','zekrom':'ゼクロム','kyurem':'キュレム','xerneas':'ゼルネアス',
-  'yveltal':'イベルタル','zygarde':'ジガルデ','solgaleo':'ソルガレオ','lunala':'ルナアーラ',
-  'necrozma':'ネクロズマ','zarude':'ザルード','celebi':'セレビィ','jirachi':'ジラーチ',
+  'salamèche':'ヒトカゲ','salameche':'ヒトカゲ',
+  'reptincel':'リザード',
+  'carapuce':'ゼニガメ','carabaffe':'カメール',
+  'bulbizarre':'フシギダネ','herbizarre':'フシギソウ',
+  'raichu':'ライチュウ','magicarpe':'コイキング',
+  'métamorph':'メタモン','metamorph':'メタモン',
+  'lokhlass':'ラプラス','minidraco':'ミニリュウ',
+  'draco':'ハクリュー',
+  'abra':'ケーシィ','kadabra':'ユンゲラー','alakazam':'フーディン',
+  'machoc':'ワンリキー','machopeur':'ゴーリキー','mackogneur':'カイリキー',
+  'feunard':'キュウコン','goupix':'ロコン',
+  'caninos':'ガーディ','arcanin':'ウインディ',
+  'osselait':'カラカラ','ossatueur':'ガラガラ',
+  'élektek':'エレブー','elektek':'エレブー',
+  'magmar':'ブーバー','scarabrute':'カイロス','tauros':'ケンタロス',
+  'latios':'ラティオス','latias':'ラティアス',
+  'groudon':'グラードン','kyogre':'カイオーガ',
+  'deoxys':'デオキシス','darkrai':'ダークライ','cresselia':'クレセリア',
+  'reshiram':'レシラム','zekrom':'ゼクロム','kyurem':'キュレム',
+  'xerneas':'ゼルネアス','yveltal':'イベルタル','zygarde':'ジガルデ',
+  'solgaleo':'ソルガレオ','lunala':'ルナアーラ','necrozma':'ネクロズマ',
+  'celebi':'セレビィ','jirachi':'ジラーチ',
+  'suicune':'スイクン','entei':'エンテイ','raikou':'ライコウ','hooh':'ホウオウ','ho-oh':'ホウオウ',
+  'zoroark':'ゾロアーク','zorua':'ゾロア','absol':'アブソル',
+  'amphinobi':'ゲッコウガ','braségali':'バシャーモ','brasegali':'バシャーモ',
+  'jungko':'ジュカイン','laggron':'ラグラージ',
   'regice':'レジアイス','regirock':'レジロック','registeel':'レジスチル','regigigas':'レジギガス',
-  'heatran':'ヒードラン','crefadet':'アグノム','crefollet':'ユクシー','crehelf':'エムリット',
-  'suicune':'スイクン','entei':'エンテイ','raikou':'ライコウ','hooh':'ホウオウ',
-  'zoroark':'ゾロアーク','zorua':'ゾロア','absol':'アブソル','migalos':'アリアドス',
-  'amphinobi':'ゲッコウガ','greninja':'ゲッコウガ','braségali':'バシャーモ','blaziken':'バシャーモ',
-  'jungko':'ジュカイン','sceptile':'ジュカイン','laggron':'ラグラージ','swampert':'ラグラージ',
+  'heatran':'ヒードラン',
 };
+// Build lookup with accent-stripped duplicates
+const FR_TO_JA = {};
+for (const [k, v] of Object.entries(_FR_JA_BASE)) {
+  FR_TO_JA[k] = v;
+  const stripped = k.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (stripped !== k) FR_TO_JA[stripped] = v;
+}
 
 // EN → JA translation
 const EN_TO_JA = {
@@ -449,6 +470,9 @@ const EN_TO_JA = {
   'growlithe':'ガーディ','arcanine':'ウインディ','latios':'ラティオス','latias':'ラティアス',
   'groudon':'グラードン','kyogre':'カイオーガ','reshiram':'レシラム','zekrom':'ゼクロム',
   'greninja':'ゲッコウガ','blaziken':'バシャーモ','sceptile':'ジュカイン','swampert':'ラグラージ',
+  'ho-oh':'ホウオウ','hooh':'ホウオウ','suicune':'スイクン','entei':'エンテイ','raikou':'ライコウ',
+  'celebi':'セレビィ','jirachi':'ジラーチ','deoxys':'デオキシス','darkrai':'ダークライ',
+  'absol':'アブソル','zoroark':'ゾロアーク','zorua':'ゾロア',
 };
 
 function isTCGPocketCard(card) {
@@ -459,12 +483,15 @@ function isTCGPocketCard(card) {
 
 async function fetchCardsFromLang(lang, query) {
   try {
-    const res = await fetch(`https://api.tcgdex.net/v2/${lang}/cards?name=like:${encodeURIComponent(query)}&pagination:itemsPerPage=50`);
-    if (!res.ok) return [];
+    const url = `https://api.tcgdex.net/v2/${lang}/cards?name=like:${encodeURIComponent(query)}&pagination:itemsPerPage=50`;
+    console.log(`[Holofoil] Fetching ${lang}:`, url);
+    const res = await fetch(url);
+    if (!res.ok) { console.warn(`[Holofoil] ${lang} returned ${res.status}`); return []; }
     const data = await res.json();
-    // Filter out TCG Pocket cards, tag with language
-    return data.filter(c => !isTCGPocketCard(c)).map(c => ({ ...c, _lang: lang }));
-  } catch { return []; }
+    const filtered = data.filter(c => !isTCGPocketCard(c)).map(c => ({ ...c, _lang: lang }));
+    console.log(`[Holofoil] ${lang} results: ${filtered.length} (raw: ${data.length})`);
+    return filtered;
+  } catch (err) { console.error(`[Holofoil] ${lang} error:`, err); return []; }
 }
 
 async function searchApi() {
@@ -475,8 +502,11 @@ async function searchApi() {
   results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours (FR + JA)...</p>';
 
   // Build JA search term from translation tables
-  const queryLow = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const jaName = FR_TO_JA[queryLow] || EN_TO_JA[queryLow] || null;
+  const queryLow = query.toLowerCase().trim();
+  const queryNoAccent = queryLow.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Try with accents first, then without
+  const jaName = FR_TO_JA[queryLow] || EN_TO_JA[queryLow] || FR_TO_JA[queryNoAccent] || EN_TO_JA[queryNoAccent] || null;
+  console.log('[Holofoil] Search:', query, '→ JA:', jaName || '(no translation)');
 
   // Search FR + EN + JA (by translated name) all in parallel
   const searches = [
@@ -497,6 +527,7 @@ async function searchApi() {
   for (const batch of jaSearches) {
     for (const c of (batch || [])) cardsJA.push(c);
   }
+  console.log(`[Holofoil] Merged: FR=${cardsFR.length} EN=${cardsEN.length} JA=${cardsJA.length}`);
 
   // Deduplicate: FR cards, then JA cards (as separate entries!), then EN
   const cardMap = new Map();
