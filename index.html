@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr" class="has-announcement">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Holofoil — Cartes Pokémon Premium</title>
+  <meta name="description" content="Votre destination premium pour les cartes Pokémon les plus rares. Achat, vente et rachat. Authenticité garantie.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+
+  <!-- ═══ ANNOUNCEMENT BAR ═══ -->
+  <div class="announcement-bar" id="announcementBar">
+    <button class="arrow" onclick="prevAnnouncement()">&#8592;</button>
+    <span id="announcementText">2 Boosters offerts à partir de 200€ d'achat</span>
+    <button class="arrow" onclick="nextAnnouncement()">&#8594;</button>
+  </div>
+
+  <!-- ═══ PAGE CONTENT ═══ -->
+  <main class="page-content page-home">
+
+    <!-- ═══ HERO BANNER ═══ -->
+    <section class="hero-banner">
+      <div class="hero-banner-bg">
+        <div class="bg-layer">
+          <div class="cards-mosaic" id="cardsMosaic"></div>
+        </div>
+        <div class="overlay"></div>
+      </div>
+      <!-- Content removed — mosaic speaks for itself -->
+    </section>
+
+    <!-- ═══ MARQUEE ═══ -->
+    <div class="marquee-section">
+      <div class="marquee-track" id="marqueeTrack"></div>
+    </div>
+
+    <!-- ═══ CATEGORIES ═══ -->
+    <section class="categories-section">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Explorer</p>
+          <h2 class="section-title">Nos Univers</h2>
+        </div>
+        <div class="categories-grid" id="categoriesGrid"></div>
+      </div>
+    </section>
+
+    <!-- ═══ FEATURED ═══ -->
+    <section class="featured-section">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Sélection du moment</p>
+          <h2 class="section-title">Cartes à la une</h2>
+        </div>
+        <div class="featured-grid" id="featuredGrid"></div>
+        <div class="featured-footer">
+          <a href="boutique.html" class="holo-btn">
+            Voir toute la boutique
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ TRUST BAR ═══ -->
+    <section class="trust-bar">
+      <div class="container">
+        <div class="trust-bar-grid">
+          <div class="trust-bar-item">
+            <div class="trust-bar-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+            </div>
+            <h4>100% Authentique</h4>
+            <p>Chaque carte vérifiée par nos experts</p>
+          </div>
+          <div class="trust-bar-item">
+            <div class="trust-bar-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg>
+            </div>
+            <h4>Livraison Sécurisée</h4>
+            <p>Emballage premium & suivi en temps réel</p>
+          </div>
+          <div class="trust-bar-item">
+            <div class="trust-bar-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+            </div>
+            <h4>Grading Pro</h4>
+            <p>Standards internationaux de notation</p>
+          </div>
+          <div class="trust-bar-item">
+            <div class="trust-bar-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            </div>
+            <h4>Rachat au Meilleur Prix</h4>
+            <p>Estimation gratuite sous 24h</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ NEWSLETTER ═══ -->
+    <section class="newsletter-section">
+      <div class="container">
+        <div class="newsletter-card">
+          <h2>Restez informé des <span class="holo-text">nouveautés</span></h2>
+          <p>Recevez en avant-première nos nouvelles cartes, offres exclusives et bons plans.</p>
+          <form class="newsletter-form" onsubmit="return false;">
+            <input type="email" class="newsletter-input" placeholder="votre@email.com">
+            <button type="button" class="newsletter-submit" onclick="showToast('Inscription confirmée !')">S'inscrire</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    // ─── ANNOUNCEMENTS ───
+    const announcements = [
+      '2 Boosters offerts à partir de 200€ d\'achat',
+      'Livraison gratuite dès 50€ · France métropolitaine',
+      'Nouvelle collection Écarlate & Violet disponible',
+    ];
+    let annIdx = 0;
+    function showAnnouncement() {
+      document.getElementById('announcementText').textContent = announcements[annIdx];
+    }
+    function nextAnnouncement() {
+      annIdx = (annIdx + 1) % announcements.length;
+      showAnnouncement();
+    }
+    function prevAnnouncement() {
+      annIdx = (annIdx - 1 + announcements.length) % announcements.length;
+      showAnnouncement();
+    }
+    setInterval(nextAnnouncement, 5000);
+
+    // ─── MOSAIC (real card images from API) ───
+    async function buildMosaic() {
+      const mosaic = document.getElementById('cardsMosaic');
+      // Fetch popular cards for the mosaic background
+      const cards = await TCGdex.getCards({ itemsPerPage: 18, sort: 'name', order: 'DESC' });
+      if (!cards || !cards.length) return;
+
+      mosaic.innerHTML = cards.slice(0, 18).map(card => {
+        const img = card.image ? `${card.image}/high.webp` : '';
+        return `
+          <div class="mosaic-card">
+            <div class="mc-inner">
+              ${img ? `<img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" loading="lazy">` : `<div style="background:linear-gradient(135deg,#1a1a2e,#2a2a4e);width:100%;height:100%;border-radius:inherit;"></div>`}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // ─── MARQUEE ───
+    function buildMarquee() {
+      const items = [
+        'Authenticité Garantie', 'Grading Professionnel', 'Livraison Sécurisée',
+        'Écarlate & Violet', 'Épée & Bouclier', 'Collection XY', 'Cartes Classiques',
+        'Rachat au Meilleur Prix', 'Paiement Sécurisé', 'Expert Pokémon',
+      ];
+      const track = document.getElementById('marqueeTrack');
+      const html = items.map(t => `<div class="marquee-item"><span class="sep"></span>${t}</div>`).join('');
+      track.innerHTML = html + html;
+    }
+
+    // ─── CATEGORIES (real sets from API) ───
+    async function buildCategories() {
+      const grid = document.getElementById('categoriesGrid');
+      const sets = await TCGdex.getSets();
+      if (!sets || !sets.length) return;
+
+      // Pick 4 recent sets
+      const recent = sets.slice(-8).reverse().filter(s => s.logo).slice(0, 4);
+      grid.innerHTML = recent.map(set => TCGdex.buildSetHTML(set)).join('');
+    }
+
+    // ─── FEATURED (real cards from API) ───
+    async function buildFeatured() {
+      const grid = document.getElementById('featuredGrid');
+      showLoading(grid, 4);
+      const cards = await TCGdex.getCards({ itemsPerPage: 4, sort: 'name' });
+      if (!cards || !cards.length) { grid.innerHTML = '<p style="color:var(--text-muted)">Impossible de charger les cartes.</p>'; return; }
+      grid.innerHTML = cards.map(c => TCGdex.buildCardHTML(c)).join('');
+    }
+
+    // ─── INIT ───
+    document.addEventListener('DOMContentLoaded', () => {
+      injectFooter();
+      buildMarquee();
+      buildMosaic();
+      buildCategories();
+      buildFeatured();
+    });
+  </script>
+</body>
+</html>

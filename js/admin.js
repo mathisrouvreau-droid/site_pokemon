@@ -1,0 +1,586 @@
+/* ═══════════════════════════════════════
+   HOLOFOIL — ADMIN PANEL JS
+   ═══════════════════════════════════════ */
+
+// ─── DEFAULT DATA ───
+const DEFAULT_ADMIN = {
+  email: 'jojodogm@gmail.com',
+  password: 'Jojo@26092004MIMOSA',
+  role: 'owner'
+};
+
+// ─── STORAGE KEYS ───
+const KEYS = {
+  admins: 'holofoil_admins',
+  session: 'holofoil_admin_session',
+  listings: 'holofoil_listings',
+};
+
+// ─── INIT ADMINS ───
+function getAdmins() {
+  let admins = JSON.parse(localStorage.getItem(KEYS.admins) || 'null');
+  if (!admins) {
+    admins = [DEFAULT_ADMIN];
+    localStorage.setItem(KEYS.admins, JSON.stringify(admins));
+  }
+  // Always ensure default admin exists
+  if (!admins.find(a => a.email === DEFAULT_ADMIN.email)) {
+    admins.push(DEFAULT_ADMIN);
+    localStorage.setItem(KEYS.admins, JSON.stringify(admins));
+  }
+  return admins;
+}
+
+function saveAdmins(admins) {
+  localStorage.setItem(KEYS.admins, JSON.stringify(admins));
+}
+
+// ─── SESSION ───
+function getSession() {
+  return JSON.parse(localStorage.getItem(KEYS.session) || 'null');
+}
+
+function setSession(email) {
+  localStorage.setItem(KEYS.session, JSON.stringify({ email, ts: Date.now() }));
+}
+
+function clearSession() {
+  localStorage.removeItem(KEYS.session);
+}
+
+// ─── LISTINGS (cards for sale) ───
+function getListings() {
+  return JSON.parse(localStorage.getItem(KEYS.listings) || '[]');
+}
+
+function saveListings(listings) {
+  localStorage.setItem(KEYS.listings, JSON.stringify(listings));
+}
+
+// ═══════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════
+function attemptLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+
+  if (!email || !password) {
+    errorEl.textContent = 'Veuillez remplir tous les champs.';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  const admins = getAdmins();
+  const user = admins.find(a => a.email.toLowerCase() === email && a.password === password);
+
+  if (!user) {
+    errorEl.textContent = 'Email ou mot de passe incorrect.';
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  errorEl.classList.remove('visible');
+  setSession(user.email);
+  showDashboard();
+}
+
+function logout() {
+  clearSession();
+  location.reload();
+}
+
+// ═══════════════════════════════════════
+//  DASHBOARD INIT
+// ═══════════════════════════════════════
+let currentTab = 'cards';
+let editingId = null;
+
+function showDashboard() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('adminLayout').classList.add('visible');
+
+  const session = getSession();
+  document.getElementById('adminEmail').textContent = session.email;
+
+  switchTab('cards');
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.admin-nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.tab === tab);
+  });
+
+  const main = document.getElementById('adminMain');
+
+  if (tab === 'cards') renderCardsTab(main);
+  else if (tab === 'users') renderUsersTab(main);
+}
+
+// ═══════════════════════════════════════
+//  CARDS TAB
+// ═══════════════════════════════════════
+function renderCardsTab(container) {
+  const listings = getListings();
+  const totalValue = listings.reduce((s, l) => s + (parseFloat(l.price) || 0), 0);
+
+  container.innerHTML = `
+    <div class="admin-header">
+      <h1>Cartes en vente</h1>
+      <div class="admin-header-actions">
+        <button class="holo-btn-filled" onclick="openCardModal()" style="padding:10px 24px;font-size:0.85rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Ajouter une carte
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Cartes en vente</div>
+        <div class="stat-value">${listings.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Valeur totale</div>
+        <div class="stat-value">${totalValue.toFixed(2)} €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Prix moyen</div>
+        <div class="stat-value">${listings.length ? (totalValue / listings.length).toFixed(2) : '0.00'} €</div>
+      </div>
+    </div>
+
+    ${listings.length === 0 ? `
+      <div class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+        <p>Aucune carte en vente pour le moment.</p>
+        <button class="holo-btn-filled" onclick="openCardModal()" style="padding:10px 24px;font-size:0.85rem;">Ajouter ma première carte</button>
+      </div>
+    ` : `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Carte</th>
+              <th>État</th>
+              <th>Prix</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${listings.map((l, i) => `
+              <tr>
+                <td>
+                  <div class="card-info">
+                    ${l.image ? `<img src="${l.image}" class="card-thumb" alt="">` : `<div class="card-thumb" style="background:var(--bg-elevated);"></div>`}
+                    <div class="card-info-text">
+                      <h4>${l.name}</h4>
+                      <p>${l.set || ''} ${l.apiId ? '· API' : '· Custom'}</p>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="condition-badge condition-${l.conditionClass || 'nm'}">${l.condition}</span></td>
+                <td><strong>${parseFloat(l.price).toFixed(2)} €</strong></td>
+                <td style="font-size:0.8rem;color:var(--text-muted);">${l.date || '—'}</td>
+                <td>
+                  <div class="table-actions">
+                    <button class="table-btn" onclick="editCard(${i})">Modifier</button>
+                    <button class="table-btn danger" onclick="deleteCard(${i})">Supprimer</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `}
+  `;
+}
+
+// ═══════════════════════════════════════
+//  CARD MODAL
+// ═══════════════════════════════════════
+let selectedApiCard = null;
+let customImageData = null;
+
+function openCardModal(index = null) {
+  editingId = index;
+  selectedApiCard = null;
+  customImageData = null;
+
+  const listing = index !== null ? getListings()[index] : null;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'admin-modal-overlay';
+  overlay.id = 'cardModalOverlay';
+  overlay.onclick = (e) => { if (e.target === overlay) closeCardModal(); };
+
+  overlay.innerHTML = `
+    <div class="admin-modal">
+      <h2>
+        ${listing ? 'Modifier la carte' : 'Ajouter une carte'}
+        <button onclick="closeCardModal()">✕</button>
+      </h2>
+
+      <!-- Tab switch: API or custom -->
+      <div style="display:flex;gap:8px;margin-bottom:24px;">
+        <button class="filter-btn active" id="tabApi" onclick="switchModalTab('api')">Recherche API</button>
+        <button class="filter-btn" id="tabCustom" onclick="switchModalTab('custom')">Image personnalisée</button>
+      </div>
+
+      <!-- API search -->
+      <div id="modalApiSection">
+        <div class="api-search-row">
+          <input type="text" class="form-input" id="apiSearchInput" placeholder="Rechercher une carte (ex: Dracaufeu)..." value="${listing?.apiId ? listing.name : ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();searchApi();}">
+          <button class="holo-btn-filled" style="padding:10px 20px;font-size:0.85rem;white-space:nowrap;" onclick="searchApi()">Chercher</button>
+        </div>
+        <div class="api-search-results" id="apiResults"></div>
+        <div id="selectedCardPreview" style="display:none;margin-bottom:20px;"></div>
+      </div>
+
+      <!-- Custom image upload -->
+      <div id="modalCustomSection" style="display:none;">
+        <div class="image-upload-area" id="customUploadArea">
+          <div id="customUploadContent">
+            ${listing && listing.image && !listing.apiId ? `<img src="${listing.image}" alt=""><p style="margin-top:8px;">Cliquer pour changer l'image</p>` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--holo-1);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg><p>Cliquer pour importer une image</p><p style="font-size:0.7rem;color:var(--text-muted);">JPG, PNG, WEBP, GIF — tous formats acceptés</p>`}
+          </div>
+          <input type="file" id="customFileInput" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+        </div>
+      </div>
+
+      <!-- Card form -->
+      <form class="admin-form" onsubmit="return false;">
+        <div class="form-group">
+          <label class="form-label">Nom de la carte *</label>
+          <input type="text" class="form-input" id="modalCardName" placeholder="Nom de la carte" value="${listing?.name || ''}">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Prix (€) *</label>
+            <input type="number" class="form-input" id="modalCardPrice" placeholder="29.99" step="0.01" min="0" value="${listing?.price || ''}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">État *</label>
+            <select class="form-select" id="modalCardCondition">
+              <option value="" disabled ${!listing ? 'selected' : ''}>Choisir</option>
+              <option value="Mint" ${listing?.condition === 'Mint' ? 'selected' : ''}>Mint</option>
+              <option value="Near Mint" ${listing?.condition === 'Near Mint' ? 'selected' : ''}>Near Mint</option>
+              <option value="Excellent" ${listing?.condition === 'Excellent' ? 'selected' : ''}>Excellent</option>
+              <option value="Good" ${listing?.condition === 'Good' ? 'selected' : ''}>Good</option>
+              <option value="Played" ${listing?.condition === 'Played' ? 'selected' : ''}>Played</option>
+              <option value="Poor" ${listing?.condition === 'Poor' ? 'selected' : ''}>Poor</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Set / Extension</label>
+          <input type="text" class="form-input" id="modalCardSet" placeholder="Ex: Écarlate & Violet" value="${listing?.set || ''}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rareté</label>
+          <input type="text" class="form-input" id="modalCardRarity" placeholder="Ex: Ultra Rare" value="${listing?.rarity || ''}">
+        </div>
+        <button class="admin-save-btn" onclick="saveCard()">
+          ${listing ? 'Enregistrer les modifications' : 'Mettre en vente'}
+        </button>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  // Init custom image upload listener
+  initCustomUpload();
+
+  // If editing an API card, preselect
+  if (listing?.apiId) {
+    selectedApiCard = { id: listing.apiId, name: listing.name, image: listing.image, set: { name: listing.set }, rarity: listing.rarity };
+  }
+  if (listing && !listing.apiId && listing.image) {
+    customImageData = listing.image;
+    switchModalTab('custom');
+  }
+}
+
+function closeCardModal() {
+  const overlay = document.getElementById('cardModalOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('visible');
+  setTimeout(() => overlay.remove(), 300);
+  editingId = null;
+  selectedApiCard = null;
+  customImageData = null;
+}
+
+function switchModalTab(tab) {
+  document.getElementById('modalApiSection').style.display = tab === 'api' ? '' : 'none';
+  document.getElementById('modalCustomSection').style.display = tab === 'custom' ? '' : 'none';
+  document.getElementById('tabApi').classList.toggle('active', tab === 'api');
+  document.getElementById('tabCustom').classList.toggle('active', tab === 'custom');
+}
+
+// ─── API SEARCH ───
+async function searchApi() {
+  const query = document.getElementById('apiSearchInput').value.trim();
+  if (!query) return;
+
+  const results = document.getElementById('apiResults');
+  results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Recherche en cours...</p>';
+
+  const cards = await TCGdex.getCards({ name: query, itemsPerPage: 20 });
+
+  if (!cards || !cards.length) {
+    results.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat.</p>';
+    return;
+  }
+
+  // For each card, we have basic info from the list endpoint
+  // Show name + set + rarity info under each card
+  results.innerHTML = cards.map(c => {
+    const img = c.image ? `${c.image}/low.webp` : '';
+    const setName = c.set?.name || '';
+    const rarity = c.rarity || '';
+    const safeId = (c.id || '').replace(/'/g, "\\'");
+    const safeName = (c.name || '').replace(/'/g, "\\'");
+    const safeSet = setName.replace(/'/g, "\\'");
+    const safeRarity = rarity.replace(/'/g, "\\'");
+
+    return `
+      <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}')">
+        ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);"></div>`}
+        <div class="name">${c.name || '?'}</div>
+        <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
+        <div class="check">✓</div>
+      </div>`;
+  }).join('');
+}
+
+async function selectApiCard(el, id) {
+  // Deselect others
+  document.querySelectorAll('.api-result-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+
+  // Fetch full card detail from API to get all info
+  el.style.opacity = '0.6';
+  const detail = await TCGdex.getCard(id);
+  el.style.opacity = '1';
+
+  if (!detail) return;
+
+  const imgUrl = detail.image ? `${detail.image}/high.webp` : '';
+  const setName = detail.set?.name || '';
+  const rarity = detail.rarity || '';
+  const types = detail.types?.join(', ') || '';
+  const hp = detail.hp || '';
+  const stage = detail.stage || '';
+  const illustrator = detail.illustrator || '';
+  const localId = detail.localId || '';
+
+  selectedApiCard = {
+    id: detail.id,
+    name: detail.name,
+    image: imgUrl,
+    set: { name: setName, id: detail.set?.id },
+    rarity,
+    types,
+    hp,
+    stage,
+    illustrator,
+    localId,
+  };
+
+  // Auto-fill form fields
+  document.getElementById('modalCardName').value = detail.name || '';
+  document.getElementById('modalCardSet').value = setName;
+  document.getElementById('modalCardRarity').value = rarity;
+
+  // Show selected card detail preview
+  const previewEl = document.getElementById('selectedCardPreview');
+  if (previewEl) {
+    previewEl.innerHTML = `
+      <div style="display:flex;gap:16px;padding:16px;background:rgba(77,201,246,0.04);border:1px solid var(--border-holo);border-radius:12px;">
+        ${imgUrl ? `<img src="${imgUrl}" style="width:80px;border-radius:8px;object-fit:contain;" alt="">` : ''}
+        <div style="flex:1;font-size:0.8rem;">
+          <div style="font-weight:700;font-size:0.95rem;margin-bottom:6px;">${detail.name}</div>
+          <div style="color:var(--text-secondary);line-height:1.7;">
+            <div><strong>Extension :</strong> ${setName}</div>
+            <div><strong>N° :</strong> ${localId}</div>
+            <div><strong>Rareté :</strong> ${rarity}</div>
+            ${types ? `<div><strong>Type :</strong> ${types}</div>` : ''}
+            ${hp ? `<div><strong>HP :</strong> ${hp}</div>` : ''}
+            ${stage ? `<div><strong>Stade :</strong> ${stage}</div>` : ''}
+            ${illustrator ? `<div><strong>Illustrateur :</strong> ${illustrator}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+    previewEl.style.display = 'block';
+  }
+}
+
+// ─── CUSTOM IMAGE ───
+function initCustomUpload() {
+  const input = document.getElementById('customFileInput');
+  if (!input) return;
+  input.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      customImageData = e.target.result;
+      const content = document.getElementById('customUploadContent');
+      if (content) {
+        content.innerHTML = `
+          <img src="${customImageData}" alt="Preview" style="max-height:180px;margin:0 auto;border-radius:8px;">
+          <p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Cliquer pour changer l'image</p>
+        `;
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── SAVE CARD ───
+function saveCard() {
+  const name = document.getElementById('modalCardName').value.trim();
+  const price = document.getElementById('modalCardPrice').value;
+  const condition = document.getElementById('modalCardCondition').value;
+  const set = document.getElementById('modalCardSet').value.trim();
+  const rarity = document.getElementById('modalCardRarity').value.trim();
+
+  if (!name) { alert('Veuillez entrer le nom de la carte.'); return; }
+  if (!price || parseFloat(price) <= 0) { alert('Veuillez entrer un prix valide.'); return; }
+  if (!condition) { alert('Veuillez sélectionner l\'état.'); return; }
+
+  // Determine image source
+  let image = '';
+  let apiId = '';
+  if (selectedApiCard) {
+    image = selectedApiCard.image;
+    apiId = selectedApiCard.id;
+  } else if (customImageData) {
+    image = customImageData;
+  }
+
+  const conditionClassMap = {
+    'Mint': 'mint', 'Near Mint': 'nm', 'Excellent': 'ex',
+    'Good': 'good', 'Played': 'played', 'Poor': 'played'
+  };
+
+  const listing = {
+    name, price: parseFloat(price), condition,
+    conditionClass: conditionClassMap[condition] || 'nm',
+    set, rarity, image, apiId,
+    date: new Date().toLocaleDateString('fr-FR'),
+  };
+
+  const listings = getListings();
+
+  if (editingId !== null) {
+    listings[editingId] = listing;
+  } else {
+    listings.unshift(listing);
+  }
+
+  saveListings(listings);
+  closeCardModal();
+  renderCardsTab(document.getElementById('adminMain'));
+}
+
+function editCard(index) {
+  openCardModal(index);
+}
+
+function deleteCard(index) {
+  if (!confirm('Supprimer cette carte de la vente ?')) return;
+  const listings = getListings();
+  listings.splice(index, 1);
+  saveListings(listings);
+  renderCardsTab(document.getElementById('adminMain'));
+}
+
+// ═══════════════════════════════════════
+//  USERS TAB
+// ═══════════════════════════════════════
+function renderUsersTab(container) {
+  const admins = getAdmins();
+  const session = getSession();
+
+  container.innerHTML = `
+    <div class="admin-header">
+      <h1>Gestion des accès</h1>
+    </div>
+
+    <div class="users-list">
+      ${admins.map((a, i) => `
+        <div class="user-row">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="user-email">${a.email}</span>
+            <span class="user-badge ${a.role === 'owner' ? 'owner' : ''}">${a.role === 'owner' ? 'Propriétaire' : 'Admin'}</span>
+          </div>
+          ${a.role !== 'owner' ? `
+            <button class="table-btn danger" onclick="removeAdmin(${i})">Retirer</button>
+          ` : ''}
+        </div>
+      `).join('')}
+    </div>
+
+    <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;margin-top:40px;margin-bottom:12px;">Ajouter un administrateur</h3>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">Le nouvel admin pourra accéder au panel avec le mot de passe que vous définissez.</p>
+    <div class="add-user-row">
+      <input type="email" class="form-input" id="newAdminEmail" placeholder="Email du nouvel admin">
+      <input type="password" class="form-input" id="newAdminPassword" placeholder="Mot de passe" style="max-width:200px;">
+      <button class="holo-btn-filled" style="padding:10px 24px;font-size:0.85rem;white-space:nowrap;" onclick="addAdmin()">Ajouter</button>
+    </div>
+  `;
+}
+
+function addAdmin() {
+  const email = document.getElementById('newAdminEmail').value.trim().toLowerCase();
+  const password = document.getElementById('newAdminPassword').value;
+
+  if (!email || !password) { alert('Email et mot de passe requis.'); return; }
+  if (password.length < 6) { alert('Le mot de passe doit faire au moins 6 caractères.'); return; }
+
+  const admins = getAdmins();
+  if (admins.find(a => a.email.toLowerCase() === email)) {
+    alert('Cet email a déjà accès.');
+    return;
+  }
+
+  admins.push({ email, password, role: 'admin' });
+  saveAdmins(admins);
+  renderUsersTab(document.getElementById('adminMain'));
+}
+
+function removeAdmin(index) {
+  const admins = getAdmins();
+  if (admins[index].role === 'owner') return;
+  if (!confirm(`Retirer l'accès à ${admins[index].email} ?`)) return;
+  admins.splice(index, 1);
+  saveAdmins(admins);
+  renderUsersTab(document.getElementById('adminMain'));
+}
+
+// ═══════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  getAdmins(); // Ensure default admin
+  const session = getSession();
+  if (session) {
+    // Verify session is still valid
+    const admins = getAdmins();
+    if (admins.find(a => a.email === session.email)) {
+      showDashboard();
+      return;
+    }
+    clearSession();
+  }
+  // Show login
+  document.getElementById('loginPage').style.display = '';
+});

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boutique — Holofoil</title>
+  <meta name="description" content="Parcourez notre collection de cartes Pokémon premium : nouveautés, best-sellers et cartes à l'unité.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/boutique.css">
+</head>
+<body>
+
+  <main class="page-content">
+
+    <!-- ═══ HERO ═══ -->
+    <section class="boutique-hero">
+      <div class="container">
+        <h1><span class="holo-text">Boutique</span></h1>
+        <p>Découvrez notre collection de cartes Pokémon premium</p>
+      </div>
+    </section>
+
+    <!-- ═══ NOUVEAUTÉS ═══ -->
+    <section class="nouveautes-section">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Vient d'arriver</p>
+          <h2 class="section-title">Nouveautés</h2>
+        </div>
+        <div class="scroll-row" id="nouveautesRow"></div>
+      </div>
+    </section>
+
+    <!-- ═══ BEST SELLERS ═══ -->
+    <section class="bestsellers-section">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Populaire</p>
+          <h2 class="section-title">Les Plus Vendus</h2>
+        </div>
+        <div class="bestsellers-grid" id="bestsellersGrid"></div>
+      </div>
+    </section>
+
+    <!-- ═══ ALL CARDS ═══ -->
+    <section class="allcards-section">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Collection complète</p>
+          <h2 class="section-title">Cartes à l'unité</h2>
+        </div>
+        <div class="filter-bar" id="filterBar">
+          <select class="filter-select" id="setFilter">
+            <option value="all">Tous les sets</option>
+          </select>
+          <select class="filter-select" id="rarityFilter">
+            <option value="all">Toutes raretés</option>
+          </select>
+          <input type="text" class="filter-select" id="searchInput" placeholder="Rechercher une carte..." style="flex:1;min-width:200px;">
+          <button class="filter-btn active" id="searchBtn" onclick="loadAllCards()">Rechercher</button>
+        </div>
+        <div id="paginationTop" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
+        <div class="allcards-grid" id="allcardsGrid"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    let currentPage = 1;
+    const perPage = 20;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      injectFooter();
+
+      // Check URL for set filter
+      const urlParams = new URLSearchParams(window.location.search);
+      const presetSet = urlParams.get('set');
+
+      // Load sets for filter dropdown
+      const sets = await TCGdex.getSets();
+      if (sets) {
+        const setSelect = document.getElementById('setFilter');
+        sets.slice(-30).reverse().forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.name;
+          if (presetSet && s.id === presetSet) opt.selected = true;
+          setSelect.appendChild(opt);
+        });
+      }
+
+      // Load rarity options
+      const rarities = ['Commune', 'Non Commune', 'Rare', 'Holo Rare', 'Ultra Rare', 'Secret Rare', 'Illustration Rare', 'Special Art Rare', 'Double Rare', 'Art Rare'];
+      const raritySelect = document.getElementById('rarityFilter');
+      rarities.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        raritySelect.appendChild(opt);
+      });
+
+      // Event listeners
+      document.getElementById('setFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
+      document.getElementById('rarityFilter').addEventListener('change', () => { currentPage = 1; loadAllCards(); });
+      document.getElementById('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { currentPage = 1; loadAllCards(); } });
+
+      // Load sections
+      loadNouveautes();
+      loadBestsellers();
+      loadAllCards();
+    });
+
+    async function loadNouveautes() {
+      const row = document.getElementById('nouveautesRow');
+      showLoading(row, 6);
+
+      // Show admin listings first (newest), then API cards
+      const listings = getAdminListings();
+      let html = listings.slice(0, 6).map((l, i) => buildListingHTML(l, i)).join('');
+
+      if (listings.length < 6) {
+        const cards = await TCGdex.getCards({ itemsPerPage: 10 - listings.length, sort: 'name', order: 'ASC' });
+        if (cards) html += cards.map(c => TCGdex.buildCardHTML(c)).join('');
+      }
+
+      row.innerHTML = html || '<p style="color:var(--text-muted);padding:20px;">Aucune carte disponible.</p>';
+    }
+
+    async function loadBestsellers() {
+      const grid = document.getElementById('bestsellersGrid');
+      showLoading(grid, 4);
+
+      // Show admin listings as "bestsellers" + API
+      const listings = getAdminListings();
+      let html = listings.slice(0, 4).map((l, i) => buildListingHTML(l, i)).join('');
+
+      if (listings.length < 4) {
+        const cards = await TCGdex.getCards({ itemsPerPage: 4 - listings.length, sort: 'name', order: 'DESC' });
+        if (cards) html += cards.map(c => TCGdex.buildCardHTML(c)).join('');
+      }
+
+      grid.innerHTML = html || '<p style="color:var(--text-muted);">Chargement impossible.</p>';
+      }
+    }
+
+    async function loadAllCards() {
+      const grid = document.getElementById('allcardsGrid');
+      showLoading(grid, perPage);
+
+      const params = { page: currentPage, itemsPerPage: perPage };
+
+      const setVal = document.getElementById('setFilter').value;
+      if (setVal !== 'all') params.set = setVal;
+
+      const rarityVal = document.getElementById('rarityFilter').value;
+      if (rarityVal !== 'all') params.rarity = rarityVal;
+
+      const searchVal = document.getElementById('searchInput').value.trim();
+      if (searchVal) params.name = searchVal;
+
+      const cards = await TCGdex.getCards(params);
+
+      if (cards && cards.length) {
+        grid.innerHTML = cards.map(c => TCGdex.buildCardHTML(c)).join('');
+        buildPagination(cards.length);
+      } else {
+        grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucune carte trouvée.</p>';
+        document.getElementById('paginationTop').innerHTML = '';
+      }
+    }
+
+    function buildPagination(count) {
+      const pag = document.getElementById('paginationTop');
+      const hasPrev = currentPage > 1;
+      const hasNext = count >= perPage;
+      pag.innerHTML = `
+        <button class="filter-btn" ${!hasPrev ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage--;loadAllCards();window.scrollTo({top:document.querySelector('.allcards-section').offsetTop-100,behavior:'smooth'})">← Précédent</button>
+        <span style="font-size:0.85rem;color:var(--text-secondary);">Page ${currentPage}</span>
+        <button class="filter-btn" ${!hasNext ? 'disabled style="opacity:0.3;pointer-events:none;"' : ''} onclick="currentPage++;loadAllCards();window.scrollTo({top:document.querySelector('.allcards-section').offsetTop-100,behavior:'smooth'})">Suivant →</button>
+      `;
+    }
+  </script>
+</body>
+</html>

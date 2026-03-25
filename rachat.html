@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rachat — Holofoil</title>
+  <meta name="description" content="Vendez vos cartes Pokémon au meilleur prix. Estimation gratuite sous 24h.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/rachat.css">
+</head>
+<body>
+
+  <main class="page-content">
+
+    <!-- ═══ HERO ═══ -->
+    <section class="rachat-hero">
+      <div class="container">
+        <h1><span class="holo-text">Rachat</span></h1>
+        <p>Vendez vos cartes Pokémon au meilleur prix. Estimation gratuite sous 24h.</p>
+      </div>
+    </section>
+
+    <!-- ═══ FORM + INFO ═══ -->
+    <section class="rachat-content">
+      <div class="container">
+        <div class="rachat-layout">
+
+          <!-- Form -->
+          <form class="rachat-form" id="rachatForm" onsubmit="return false;">
+            <h2 class="rachat-form-title">Proposer une carte</h2>
+
+            <div class="form-group">
+              <label class="form-label">Photos de la carte *</label>
+              <div class="photo-upload-zone" id="uploadZone">
+                <div class="upload-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+                </div>
+                <h4>Glissez vos photos ici</h4>
+                <p>ou cliquez pour parcourir · JPG, PNG · 10 Mo max</p>
+                <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
+              </div>
+              <div class="photo-previews" id="photoPreviews"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="cardName">Nom de la carte *</label>
+              <input type="text" class="form-input" id="cardName" placeholder="Ex : Dracaufeu VMAX Alt Art" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="cardSet">Extension / Set</label>
+              <input type="text" class="form-input" id="cardSet" placeholder="Ex : Règne de Glace">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="cardCondition">État de la carte *</label>
+              <select class="form-select" id="cardCondition" required>
+                <option value="" disabled selected>Sélectionner l'état</option>
+                <option value="mint">Mint (Parfait)</option>
+                <option value="near-mint">Near Mint (Quasi parfait)</option>
+                <option value="excellent">Excellent</option>
+                <option value="good">Good (Bon)</option>
+                <option value="played">Played (Joué)</option>
+                <option value="poor">Poor (Mauvais)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="cardDesc">Description</label>
+              <textarea class="form-input" id="cardDesc" placeholder="Détails supplémentaires : défauts, historique, particularités..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="userEmail">Email de contact *</label>
+              <input type="email" class="form-input" id="userEmail" placeholder="votre@email.com" required>
+            </div>
+
+            <button type="submit" class="submit-btn" onclick="submitRachat()">
+              Envoyer ma proposition
+            </button>
+          </form>
+
+          <!-- Sidebar info -->
+          <div class="rachat-info">
+            <div class="info-card">
+              <h3>Comment ça marche ?</h3>
+              <ul class="process-steps">
+                <li class="process-step">
+                  <div class="step-number">1</div>
+                  <div class="step-content">
+                    <h4>Envoyez vos photos</h4>
+                    <p>Photographiez votre carte recto/verso avec un bon éclairage.</p>
+                  </div>
+                </li>
+                <li class="process-step">
+                  <div class="step-number">2</div>
+                  <div class="step-content">
+                    <h4>Estimation gratuite</h4>
+                    <p>Notre équipe évalue votre carte et vous envoie une offre sous 24h.</p>
+                  </div>
+                </li>
+                <li class="process-step">
+                  <div class="step-number">3</div>
+                  <div class="step-content">
+                    <h4>Expédition sécurisée</h4>
+                    <p>Envoyez votre carte avec l'étiquette prépayée fournie.</p>
+                  </div>
+                </li>
+                <li class="process-step">
+                  <div class="step-number">4</div>
+                  <div class="step-content">
+                    <h4>Paiement rapide</h4>
+                    <p>Recevez votre paiement par virement sous 48h après réception.</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="info-card">
+              <h3>Guide des états</h3>
+              <ul class="condition-guide">
+                <li><span class="condition-dot" style="background:#22d3ee"></span> <strong>Mint</strong> — Parfait, jamais joué</li>
+                <li><span class="condition-dot" style="background:#4ade80"></span> <strong>Near Mint</strong> — Minimes imperfections</li>
+                <li><span class="condition-dot" style="background:#a3e635"></span> <strong>Excellent</strong> — Légères traces d'usure</li>
+                <li><span class="condition-dot" style="background:#facc15"></span> <strong>Good</strong> — Usure visible modérée</li>
+                <li><span class="condition-dot" style="background:#f97316"></span> <strong>Played</strong> — Usure importante</li>
+                <li><span class="condition-dot" style="background:#ef4444"></span> <strong>Poor</strong> — Dommages significatifs</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    // ─── Photo upload logic ───
+    let uploadedFiles = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      injectFooter();
+
+      const uploadZone = document.getElementById('uploadZone');
+      const fileInput = document.getElementById('fileInput');
+      const previews = document.getElementById('photoPreviews');
+
+      uploadZone.addEventListener('click', () => fileInput.click());
+
+      uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+      });
+      uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+      });
+      uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+      });
+
+      fileInput.addEventListener('change', () => {
+        handleFiles(fileInput.files);
+        fileInput.value = '';
+      });
+    });
+
+    function handleFiles(files) {
+      const previews = document.getElementById('photoPreviews');
+      Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        if (file.size > 10 * 1024 * 1024) {
+          showToast('Fichier trop volumineux (max 10 Mo)');
+          return;
+        }
+        uploadedFiles.push(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const div = document.createElement('div');
+          div.className = 'photo-preview';
+          const idx = uploadedFiles.length - 1;
+          div.innerHTML = `
+            <img src="${e.target.result}" alt="Aperçu">
+            <div class="remove-photo" onclick="removePhoto(this, ${idx})">✕</div>
+          `;
+          previews.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function removePhoto(el, index) {
+      uploadedFiles[index] = null;
+      el.parentElement.remove();
+    }
+
+    function submitRachat() {
+      const name = document.getElementById('cardName').value.trim();
+      const condition = document.getElementById('cardCondition').value;
+      const email = document.getElementById('userEmail').value.trim();
+      const activeFiles = uploadedFiles.filter(f => f !== null);
+
+      if (!name) { showToast('Veuillez entrer le nom de la carte'); return; }
+      if (!condition) { showToast('Veuillez sélectionner l\'état de la carte'); return; }
+      if (!email) { showToast('Veuillez entrer votre email'); return; }
+      if (activeFiles.length === 0) { showToast('Veuillez ajouter au moins une photo'); return; }
+
+      // Success
+      showToast('Proposition envoyée avec succès ! Nous vous répondons sous 24h.');
+
+      // Reset
+      document.getElementById('rachatForm').reset();
+      document.getElementById('photoPreviews').innerHTML = '';
+      uploadedFiles = [];
+    }
+  </script>
+</body>
+</html>

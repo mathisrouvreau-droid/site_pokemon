@@ -1,0 +1,110 @@
+/* ═══════════════════════════════════════
+   BOUTIQUE PAGE
+   ═══════════════════════════════════════ */
+.boutique-hero {
+  padding: 60px 0 40px;
+  text-align: center;
+}
+.boutique-hero h1 {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+.boutique-hero p {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+}
+
+/* Nouveautés scroll */
+.nouveautes-section { padding: 60px 0; }
+.scroll-row {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  padding-bottom: 20px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(77, 201, 246, 0.3) transparent;
+}
+.scroll-row::-webkit-scrollbar { height: 4px; }
+.scroll-row::-webkit-scrollbar-track { background: transparent; }
+.scroll-row::-webkit-scrollbar-thumb { background: rgba(77, 201, 246, 0.3); border-radius: 4px; }
+.scroll-row .poke-card {
+  min-width: 260px;
+  max-width: 260px;
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Best sellers */
+.bestsellers-section { padding: 60px 0; }
+.bestsellers-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+/* All cards */
+.allcards-section { padding: 60px 0 120px; }
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-btn {
+  padding: 10px 22px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  background: var(--bg-card);
+}
+.filter-btn:hover,
+.filter-btn.active {
+  border-color: var(--border-holo);
+  color: var(--text-primary);
+  background: rgba(77, 201, 246, 0.06);
+}
+.filter-select {
+  padding: 10px 18px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+  appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238888a0' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+.filter-select:focus { border-color: var(--border-holo); }
+.allcards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .bestsellers-grid,
+  .allcards-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .bestsellers-grid,
+  .allcards-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .filter-bar { gap: 8px; }
+  .boutique-hero h1 { font-size: 2.2rem; }
+}
+@media (max-width: 480px) {
+  .bestsellers-grid,
+  .allcards-grid { grid-template-columns: 1fr; }
+}
