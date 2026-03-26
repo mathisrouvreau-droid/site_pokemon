@@ -272,11 +272,12 @@ img { max-width: 100%; display: block; }
 .nav-links a {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: #fff;
   transition: var(--transition);
   position: relative;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.4);
 }
 .nav-links a::after {
   content: '';
