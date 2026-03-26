@@ -213,8 +213,23 @@
   background: rgba(77, 201, 246, 0.08);
   box-shadow: 0 0 12px rgba(77, 201, 246, 0.1);
 }
+
+/* ═══ Custom Select — Liquid Glass ═══ */
 .filter-select {
+  display: none; /* hidden, replaced by custom dropdown */
+}
+
+.custom-select {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 18px;
+  padding-right: 36px;
   border-radius: 50px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 0.85rem;
@@ -222,18 +237,116 @@
   color: var(--text-secondary);
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(8px);
-  outline: none;
+  -webkit-backdrop-filter: blur(8px);
   cursor: pointer;
   transition: var(--transition);
-  appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238888a0' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
+  white-space: nowrap;
+  position: relative;
+  user-select: none;
 }
-.filter-select:focus {
+
+.custom-select-trigger::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--text-muted);
+  transition: var(--transition);
+}
+
+.custom-select.open .custom-select-trigger::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.custom-select-trigger:hover,
+.custom-select.open .custom-select-trigger {
   border-color: var(--border-holo);
-  box-shadow: 0 0 12px rgba(77, 201, 246, 0.1);
+  color: var(--text-primary);
+  background: rgba(77, 201, 246, 0.06);
+  box-shadow: 0 0 16px rgba(77, 201, 246, 0.08);
+}
+
+.custom-select-trigger:hover::after,
+.custom-select.open .custom-select-trigger::after {
+  border-top-color: var(--holo-1);
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 100%;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 500;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 10, 20, 0.82);
+  backdrop-filter: blur(32px) saturate(1.5);
+  -webkit-backdrop-filter: blur(32px) saturate(1.5);
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  padding: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.97);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(77, 201, 246, 0.25) transparent;
+}
+
+.custom-select-dropdown::-webkit-scrollbar { width: 4px; }
+.custom-select-dropdown::-webkit-scrollbar-track { background: transparent; }
+.custom-select-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(77, 201, 246, 0.25);
+  border-radius: 4px;
+}
+
+.custom-select.open .custom-select-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.custom-select-option {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-select-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.custom-select-option.selected {
+  background: rgba(77, 201, 246, 0.1);
+  color: var(--holo-1);
+  font-weight: 600;
+}
+
+.custom-select-option.selected::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--holo-1);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px var(--holo-1);
 }
 
 /* All cards grid */
@@ -268,6 +381,9 @@
   .sealed-cats { gap: 6px; }
   .sealed-cat-btn { padding: 8px 14px; font-size: 0.78rem; }
   .sub-filter-bar { gap: 8px; }
+  .custom-select-trigger { font-size: 0.78rem; padding: 8px 14px; padding-right: 30px; }
+  .custom-select-trigger::after { right: 10px; }
+  .custom-select-dropdown { min-width: 200px; }
 }
 @media (max-width: 480px) {
   .bestsellers-grid,

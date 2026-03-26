@@ -166,6 +166,7 @@ function renderCardsTab(container) {
               <th>Type</th>
               <th>Origine</th>
               <th>État</th>
+              <th>Stock</th>
               <th>Prix</th>
               <th>Date</th>
               <th>Actions</th>
@@ -190,6 +191,7 @@ function renderCardsTab(container) {
                 <td><span style="font-size:0.75rem;font-weight:600;color:${typeColor};">${typeLabel}</span></td>
                 <td><span style="font-size:0.8rem;">${{'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'}[l.origin] || '🇫🇷'} ${l.origin || 'FR'}</span></td>
                 <td><span class="condition-badge condition-${l.conditionClass || 'nm'}">${l.condition}</span></td>
+                <td>${(l.type || 'Carte') !== 'Carte' ? `<span style="font-size:0.75rem;font-weight:600;color:${(l.stockQty || 0) > 0 ? '#4ade80' : '#ef4444'};">${(l.stockQty || 0) > 0 ? (l.stockQty + ' en stock') : 'Hors stock'}</span>` : '<span style="font-size:0.75rem;color:var(--text-muted);">1</span>'}</td>
                 <td><strong>${parseFloat(l.price).toFixed(2)} €</strong></td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${l.date || '—'}</td>
                 <td>
@@ -322,6 +324,11 @@ function openCardModal(index = null) {
           <label class="form-label">Rareté</label>
           <input type="text" class="form-input" id="modalCardRarity" placeholder="Ex: Ultra Rare" value="${listing?.rarity || ''}">
         </div>
+        <div class="form-group" id="stockGroup" style="display:none;">
+          <label class="form-label">Quantité en stock</label>
+          <input type="number" class="form-input" id="modalStockQty" placeholder="Ex: 5" min="0" step="1" value="${listing?.stockQty != null ? listing.stockQty : 1}" style="max-width:160px;">
+          <p style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">0 = Hors stock</p>
+        </div>
         <div class="form-group" id="descriptionGroup">
           <label class="form-label">Description</label>
           <textarea class="form-input" id="modalCardDesc" placeholder="Détails supplémentaires..." style="min-height:80px;resize:vertical;">${listing?.description || ''}</textarea>
@@ -375,6 +382,7 @@ function onProductTypeChange() {
   const isCard = (type === 'Carte');
   const imageTabs = document.getElementById('imageTabs');
   const rarityGroup = document.getElementById('rarityGroup');
+  const stockGroup = document.getElementById('stockGroup');
   const apiSection = document.getElementById('modalApiSection');
   const customSection = document.getElementById('modalCustomSection');
   const customLabel = document.getElementById('customUploadLabel');
@@ -385,13 +393,15 @@ function onProductTypeChange() {
     apiSection.style.display = '';
     customSection.style.display = '';
     rarityGroup.style.display = '';
+    stockGroup.style.display = 'none';
     if (customLabel) customLabel.textContent = 'Photos de la carte (état réel)';
   } else {
-    // Sealed products: only custom upload
+    // Sealed products: only custom upload + stock toggle
     imageTabs.style.display = 'none';
     apiSection.style.display = 'none';
     customSection.style.display = '';
     rarityGroup.style.display = 'none';
+    stockGroup.style.display = '';
     if (customLabel) customLabel.textContent = 'Photo du produit';
   }
 
@@ -828,10 +838,13 @@ function saveCard() {
     'Good': 'good', 'Played': 'played', 'Poor': 'played'
   };
 
+  const stockQty = type === 'Carte' ? 1 : Math.max(0, parseInt(document.getElementById('modalStockQty')?.value) || 0);
+  const inStock = stockQty > 0;
+
   const listing = {
     type, name, price: parseFloat(price), condition,
     conditionClass: conditionClassMap[condition] || 'nm',
-    set, origin, rarity, description, image, apiId,
+    set, origin, rarity, description, image, apiId, inStock, stockQty,
     date: new Date().toLocaleDateString('fr-FR'),
   };
 

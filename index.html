@@ -38,14 +38,14 @@
       <div class="marquee-track" id="marqueeTrack"></div>
     </div>
 
-    <!-- ═══ CATEGORIES ═══ -->
-    <section class="categories-section">
+    <!-- ═══ NOUVEAUTÉS SCELLÉS ═══ -->
+    <section class="nouveautes-home-section">
       <div class="container">
         <div class="section-header">
-          <p class="section-label">Explorer</p>
-          <h2 class="section-title">Nos Univers</h2>
+          <p class="section-label">Vient d'arriver</p>
+          <h2 class="section-title">Nouveautés</h2>
         </div>
-        <div class="categories-grid" id="categoriesGrid"></div>
+        <div class="nouveautes-home-row" id="nouveautesHomeRow"></div>
       </div>
     </section>
 
@@ -143,22 +143,63 @@
     }
     setInterval(nextAnnouncement, 5000);
 
-    // ─── MOSAIC (real card images from API) ───
-    async function buildMosaic() {
+    // ─── MOSAIC (curated cards — mix FR/JA, ex/V/VMAX/Prime/Niv.X/SAR) ───
+    function buildMosaic() {
       const mosaic = document.getElementById('cardsMosaic');
-      // Fetch popular cards for the mosaic background
-      const cards = await TCGdex.getCards({ itemsPerPage: 18, sort: 'name', order: 'DESC' });
-      if (!cards || !cards.length) return;
 
-      mosaic.innerHTML = cards.slice(0, 18).map(card => {
-        const img = card.image ? `${card.image}/high.webp` : '';
-        return `
-          <div class="mosaic-card">
-            <div class="mc-inner">
-              ${img ? `<img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" loading="lazy">` : `<div style="background:linear-gradient(135deg,#1a1a2e,#2a2a4e);width:100%;height:100%;border-radius:inherit;"></div>`}
-            </div>
-          </div>`;
-      }).join('');
+      // Curated card image URLs — varied extensions, pre-2016 focus + requested cards
+      const cards = [
+        // ★ Requested: Lugia V Alt Art — Tempête Argentée
+        'https://assets.tcgdex.net/fr/swsh/swsh12/185/high.webp',
+        // ★ Requested: Ramoloss et Psykokwak GX Alt Art — Harmonie des Esprits
+        'https://assets.tcgdex.net/fr/sm/sm11/218/high.webp',
+        // ★ Requested: Psykokwak — Illustration Rare 151
+        'https://assets.tcgdex.net/fr/sv/sv03.5/175/high.webp',
+        // --- EX era (pre-2016) ---
+        // Dracaufeu ex — EX Rouge Feu Vert Feuille
+        'https://assets.tcgdex.net/fr/ex/ex6/105/high.webp',
+        // Rayquaza ex — EX Deoxys
+        'https://assets.tcgdex.net/fr/ex/ex8/102/high.webp',
+        // Mewtwo ex — EX Rubis & Saphir
+        'https://assets.tcgdex.net/fr/ex/ex1/101/high.webp',
+        // Groudon ex — EX Créateurs de Légendes
+        'https://assets.tcgdex.net/fr/ex/ex12/93/high.webp',
+        // --- DP / Niv.X (EN images — FR unavailable) ---
+        // Dialga Niv.X — DP Éveil des Légendes
+        'https://assets.tcgdex.net/en/dp/dp4/105/high.webp',
+        // Gardevoir Niv.X — DP Merveilles Secrètes
+        'https://assets.tcgdex.net/en/dp/dp3/131/high.webp',
+        // --- HGSS / Prime ---
+        // Typhlosion Prime — HGSS
+        'https://assets.tcgdex.net/fr/hgss/hgss1/110/high.webp',
+        // Donphan Prime — HGSS
+        'https://assets.tcgdex.net/fr/hgss/hgss1/107/high.webp',
+        // --- SWSH VMAX / VSTAR (Alt Arts) ---
+        // Dracaufeu VMAX — Ténèbres Embrasées
+        'https://assets.tcgdex.net/fr/swsh/swsh3/20/high.webp',
+        // Pikachu VMAX — Voltage Éclatant
+        'https://assets.tcgdex.net/fr/swsh/swsh4/44/high.webp',
+        // Rayquaza VMAX Alt Art — Évolution Céleste
+        'https://assets.tcgdex.net/fr/swsh/swsh7/217/high.webp',
+        // Giratina VSTAR Alt Art — Origine Perdue
+        'https://assets.tcgdex.net/fr/swsh/swsh11/201/high.webp',
+        // --- XY era Full Art ---
+        // Mewtwo EX Full Art — XY Évolutions
+        'https://assets.tcgdex.net/fr/xy/xy12/103/high.webp',
+        // Dracaufeu EX — XY Étincelles
+        'https://assets.tcgdex.net/fr/xy/xy2/11/high.webp',
+        // --- BW era Full Art ---
+        // Reshiram Full Art — Noir & Blanc
+        'https://assets.tcgdex.net/fr/bw/bw1/113/high.webp',
+      ];
+
+      mosaic.innerHTML = cards.map(url => `
+        <div class="mosaic-card">
+          <div class="mc-inner">
+            <img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" loading="lazy"
+              onerror="this.parentElement.innerHTML='<div style=\\'background:linear-gradient(135deg,#1a1a2e,#2a2a4e);width:100%;height:100%;border-radius:inherit;\\'></div>'">
+          </div>
+        </div>`).join('');
     }
 
     // ─── MARQUEE ───
@@ -173,17 +214,20 @@
       track.innerHTML = html + html;
     }
 
-    // ─── CATEGORIES (real sets from API, no TCG Pocket) ───
-    const TCGP_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'B1', 'B1a', 'B2'];
+    // ─── NOUVEAUTÉS SCELLÉS (admin listings, sealed only, most recent first) ───
+    function buildNouveautesHome() {
+      const row = document.getElementById('nouveautesHomeRow');
+      const listings = getAdminListings();
+      // Only sealed products (not single cards)
+      const sealed = listings.filter(l => (l.type || 'Carte') !== 'Carte');
 
-    async function buildCategories() {
-      const grid = document.getElementById('categoriesGrid');
-      const sets = await TCGdex.getSets();
-      if (!sets || !sets.length) return;
+      if (sealed.length === 0) {
+        row.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;width:100%;">Aucun produit scellé disponible pour le moment.</p>';
+        return;
+      }
 
-      // Pick 4 recent sets, excluding TCG Pocket
-      const recent = sets.slice(-12).reverse().filter(s => s.logo && !TCGP_IDS.includes(s.id)).slice(0, 4);
-      grid.innerHTML = recent.map(set => TCGdex.buildSetHTML(set)).join('');
+      // Show up to 10 most recent sealed items
+      row.innerHTML = sealed.slice(0, 10).map((l, i) => buildListingHTML(l)).join('');
     }
 
     // ─── FEATURED (admin listings only) ───
@@ -198,7 +242,7 @@
 
       // Show top 4 most expensive
       const sorted = [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-      grid.innerHTML = sorted.slice(0, 4).map((l, i) => buildListingHTML(l, i)).join('');
+      grid.innerHTML = sorted.slice(0, 4).map((l, i) => buildListingHTML(l)).join('');
     }
 
     // ─── INIT ───
@@ -206,7 +250,7 @@
       injectFooter();
       buildMarquee();
       buildMosaic();
-      buildCategories();
+      buildNouveautesHome();
       buildFeatured();
     });
   </script>

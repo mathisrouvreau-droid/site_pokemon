@@ -17,13 +17,16 @@ function injectNavbar() {
   nav.className = 'navbar';
   nav.id = 'navbar';
   nav.innerHTML = `
-    <a class="nav-logo holo-text" href="index.html">HOLOFOIL</a>
+    <a class="nav-logo" href="index.html" style="color:var(--text-primary);">HOLOFOIL</a>
     <ul class="nav-links" id="navLinks">
       <li><a href="index.html" data-page="index.html">Accueil</a></li>
       <li><a href="boutique.html" data-page="boutique.html">Boutique</a></li>
       <li><a href="rachat.html" data-page="rachat.html">Rachat</a></li>
     </ul>
     <div class="nav-right">
+      <button class="cart-btn" id="navSearchBtn" onclick="toggleGlobalSearch()" aria-label="Rechercher">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+      </button>
       <button class="cart-btn" onclick="toggleCart()">
         ${ICONS.bag}
         <span class="cart-count" id="cartCount">0</span>
@@ -42,6 +45,118 @@ function injectAmbientBg() {
   bg.className = 'ambient-bg';
   bg.innerHTML = '<div class="orb"></div><div class="orb"></div><div class="orb"></div>';
   document.body.prepend(bg);
+
+  // Particles canvas
+  const canvas = document.createElement('canvas');
+  canvas.className = 'particles-canvas';
+  canvas.id = 'particlesCanvas';
+  document.body.prepend(canvas);
+
+  initParticles(canvas);
+}
+
+function initParticles(canvas) {
+  const ctx = canvas.getContext('2d');
+  let w, h;
+  let mouseX = -1000, mouseY = -1000;
+  const PARTICLE_COUNT = 80;
+  const MOUSE_RADIUS = 160;
+  const MOUSE_STRENGTH = 0.04;
+
+  const colors = [
+    'rgba(77,201,246,',   // holo-1 cyan
+    'rgba(168,85,247,',   // holo-2 purple
+    'rgba(249,115,22,',   // holo-3 orange
+    'rgba(34,211,238,',   // holo-4 teal
+    'rgba(236,72,153,',   // holo-5 pink
+  ];
+
+  let particles = [];
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+
+  function createParticle() {
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      baseX: 0, baseY: 0, // set after
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      size: Math.random() * 2 + 0.5,
+      opacity: Math.random() * 0.5 + 0.15,
+      color,
+      pulseSpeed: Math.random() * 0.01 + 0.005,
+      pulseOffset: Math.random() * Math.PI * 2,
+    };
+  }
+
+  function init() {
+    resize();
+    particles = [];
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const p = createParticle();
+      p.baseX = p.x;
+      p.baseY = p.y;
+      particles.push(p);
+    }
+  }
+
+  let frame = 0;
+  function animate() {
+    frame++;
+    ctx.clearRect(0, 0, w, h);
+
+    for (const p of particles) {
+      // Gentle autonomous drift
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Wrap around edges
+      if (p.x < -10) p.x = w + 10;
+      if (p.x > w + 10) p.x = -10;
+      if (p.y < -10) p.y = h + 10;
+      if (p.y > h + 10) p.y = -10;
+
+      // Mouse repulsion
+      const dx = p.x - mouseX;
+      const dy = p.y - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < MOUSE_RADIUS && dist > 0) {
+        const force = (MOUSE_RADIUS - dist) / MOUSE_RADIUS * MOUSE_STRENGTH;
+        p.x += dx / dist * force * MOUSE_RADIUS * 0.15;
+        p.y += dy / dist * force * MOUSE_RADIUS * 0.15;
+      }
+
+      // Pulsing opacity
+      const pulse = Math.sin(frame * p.pulseSpeed + p.pulseOffset) * 0.3 + 0.7;
+      const alpha = p.opacity * pulse;
+
+      // Draw
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color + alpha + ')';
+      ctx.fill();
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  window.addEventListener('resize', resize);
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  document.addEventListener('mouseleave', () => {
+    mouseX = -1000;
+    mouseY = -1000;
+  });
+
+  init();
+  animate();
 }
 
 // ─── INJECT FOOTER ───
@@ -136,10 +251,143 @@ function injectToast() {
   document.body.appendChild(toast);
 }
 
+// ─── INJECT GLOBAL SEARCH ───
+function injectGlobalSearch() {
+  const overlay = document.createElement('div');
+  overlay.className = 'search-overlay';
+  overlay.id = 'searchOverlay';
+  overlay.innerHTML = `
+    <div class="search-panel" onclick="event.stopPropagation()">
+      <div class="search-input-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <input type="text" id="globalSearchInput" placeholder="Rechercher un produit, une carte..." autocomplete="off">
+        <kbd class="search-kbd">ESC</kbd>
+      </div>
+      <div class="search-results" id="globalSearchResults">
+        <div class="search-empty">Tapez pour rechercher parmi tous les produits disponibles</div>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeGlobalSearch(); });
+  document.body.appendChild(overlay);
+}
+
+let _searchDebounce = null;
+
+function toggleGlobalSearch() {
+  const overlay = document.getElementById('searchOverlay');
+  if (!overlay) return;
+  const isOpen = overlay.classList.contains('open');
+  if (isOpen) {
+    closeGlobalSearch();
+  } else {
+    overlay.classList.add('open');
+    const input = document.getElementById('globalSearchInput');
+    input.value = '';
+    input.focus();
+    document.getElementById('globalSearchResults').innerHTML = '<div class="search-empty">Tapez pour rechercher parmi tous les produits disponibles</div>';
+    input.addEventListener('input', onGlobalSearchInput);
+  }
+}
+
+function closeGlobalSearch() {
+  const overlay = document.getElementById('searchOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function onGlobalSearchInput(e) {
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => performGlobalSearch(e.target.value.trim()), 200);
+}
+
+function performGlobalSearch(query) {
+  const resultsEl = document.getElementById('globalSearchResults');
+  if (!query || query.length < 2) {
+    resultsEl.innerHTML = '<div class="search-empty">Tapez au moins 2 caractères pour rechercher</div>';
+    return;
+  }
+
+  const q = query.toLowerCase();
+  const listings = (typeof getAdminListings === 'function') ? getAdminListings() : [];
+
+  // Filter listings matching query
+  const matched = listings.filter(l => {
+    const name = (l.name || '').toLowerCase();
+    const set = (l.set || '').toLowerCase();
+    const type = (l.type || '').toLowerCase();
+    return name.includes(q) || set.includes(q) || type.includes(q);
+  });
+
+  if (matched.length === 0) {
+    resultsEl.innerHTML = `<div class="search-empty">Aucun résultat pour « ${query} »</div>`;
+    return;
+  }
+
+  // Show max 8 results
+  const typeColors = { 'Carte':'var(--holo-1)', 'Booster':'#f97316', 'ETB':'#a855f7', 'Coffret':'#22d3ee', 'Display':'#ec4899', 'Bundle':'#4ade80', 'Autre':'var(--text-muted)' };
+  const originFlags = {'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'};
+
+  // Store matched results globally for onclick
+  window._searchResults = matched.slice(0, 8);
+
+  const html = window._searchResults.map((l, i) => {
+    const type = l.type || 'Carte';
+    const isCard = type === 'Carte';
+    const typeColor = typeColors[type] || 'var(--text-muted)';
+    const flag = originFlags[l.origin] || '🇫🇷';
+    const stockBadge = !isCard ? ((l.stockQty || 0) > 0
+      ? '<span style="font-size:0.65rem;font-weight:600;color:#4ade80;">En stock</span>'
+      : '<span style="font-size:0.65rem;font-weight:600;color:#ef4444;">Hors stock</span>') : '';
+
+    return `
+      <div class="search-result-item" onclick="openSearchResult(${i})">
+        <div class="search-result-img">
+          ${l.image ? `<img src="${l.image}" alt="" style="width:100%;height:100%;object-fit:${isCard ? 'contain' : 'cover'};border-radius:6px;">` : `<div style="width:100%;height:100%;background:var(--bg-elevated);border-radius:6px;"></div>`}
+        </div>
+        <div class="search-result-info">
+          <div class="search-result-name">${l.name}</div>
+          <div class="search-result-meta">
+            <span style="color:${typeColor};font-weight:600;">${type}</span>
+            ${l.set ? `<span>·</span><span>${l.set}</span>` : ''}
+            <span>${flag}</span>
+            ${stockBadge}
+          </div>
+        </div>
+        <div class="search-result-price">${parseFloat(l.price).toFixed(2)} €</div>
+      </div>`;
+  }).join('');
+
+  const countExtra = matched.length > 8 ? `<div class="search-more"><a href="boutique.html">Voir les ${matched.length} résultats dans la boutique →</a></div>` : '';
+  resultsEl.innerHTML = html + countExtra;
+}
+
+function openSearchResult(i) {
+  const listing = window._searchResults && window._searchResults[i];
+  if (!listing) return;
+  closeGlobalSearch();
+  // Store in global shop listings and open detail
+  window._shopListings = [];
+  window._shopListingsCounter = 0;
+  window._shopListings[0] = listing;
+  window._shopListingsCounter = 1;
+  openListingDetail(0);
+}
+
+// ESC key to close search
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeGlobalSearch();
+  // Ctrl+K or Cmd+K to open search
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    toggleGlobalSearch();
+  }
+});
+
 // ─── INIT ALL SHARED COMPONENTS ───
 function initComponents() {
   injectAmbientBg();
   injectNavbar();
+  injectGlobalSearch();
   injectToast();
   injectCartSidebar();
 }

@@ -48,68 +48,32 @@
 
     <!-- ═══ VIEW: ALL (Nouveautés + Best sellers + Tout) ═══ -->
     <div id="viewAll">
-      <!-- Nouveautés -->
+      <!-- Nouveautés Items Scellés -->
       <section class="nouveautes-section">
         <div class="container">
           <div class="glass-panel">
             <div class="section-header">
               <p class="section-label">Vient d'arriver</p>
-              <h2 class="section-title">Nouveautés</h2>
+              <h2 class="section-title">Nouveautés Items Scellés</h2>
             </div>
-            <div class="scroll-row" id="nouveautesRow"></div>
+            <div class="scroll-row" id="nouveautesSealedRow"></div>
           </div>
         </div>
       </section>
 
-      <!-- Best sellers -->
-      <section class="bestsellers-section">
+      <!-- Nouveautés Cartes Pokémon -->
+      <section class="nouveautes-section">
         <div class="container">
           <div class="glass-panel">
             <div class="section-header">
-              <p class="section-label">Populaire</p>
-              <h2 class="section-title">Les Plus Vendus</h2>
+              <p class="section-label">Vient d'arriver</p>
+              <h2 class="section-title">Nouveautés Cartes Pokémon</h2>
             </div>
-            <div class="bestsellers-grid" id="bestsellersGrid"></div>
+            <div class="scroll-row" id="nouveautesCardsRow"></div>
           </div>
         </div>
       </section>
 
-      <!-- All products -->
-      <section class="allcards-section">
-        <div class="container">
-          <div class="section-header">
-            <p class="section-label">Catalogue complet</p>
-            <h2 class="section-title">Tous les produits</h2>
-          </div>
-          <div class="sub-filter-bar" id="allFilterBar">
-            <select class="filter-select" id="allSetFilter"><option value="all">Tous les sets</option></select>
-            <select class="filter-select" id="allTypeFilter">
-              <option value="all">Tous les types</option>
-              <option value="Carte">Cartes</option>
-              <option value="Booster">Boosters</option>
-              <option value="ETB">ETB</option>
-              <option value="Coffret">Coffrets</option>
-              <option value="Display">Displays</option>
-              <option value="Bundle">Bundles</option>
-            </select>
-            <select class="filter-select" id="allOriginFilter">
-              <option value="all">Toutes provenances</option>
-              <option value="FR">🇫🇷 Française</option>
-              <option value="EN">🇬🇧 Anglaise</option>
-              <option value="JA">🇯🇵 Japonaise</option>
-              <option value="KO">🇰🇷 Coréenne</option>
-              <option value="DE">🇩🇪 Allemande</option>
-              <option value="ES">🇪🇸 Espagnole</option>
-              <option value="IT">🇮🇹 Italienne</option>
-              <option value="PT">🇧🇷 Portugaise</option>
-              <option value="CN">🇨🇳 Chinoise</option>
-              <option value="TW">🇹🇼 Taïwanaise</option>
-            </select>
-          </div>
-          <div id="allPagination" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;"></div>
-          <div class="allcards-grid" id="allGrid"></div>
-        </div>
-      </section>
     </div>
 
     <!-- ═══ VIEW: CARDS ONLY ═══ -->
@@ -128,15 +92,8 @@
             <select class="filter-select" id="cardsOriginFilter">
               <option value="all">Toutes provenances</option>
               <option value="FR">🇫🇷 Française</option>
-              <option value="EN">🇬🇧 Anglaise</option>
               <option value="JA">🇯🇵 Japonaise</option>
-              <option value="KO">🇰🇷 Coréenne</option>
-              <option value="DE">🇩🇪 Allemande</option>
-              <option value="ES">🇪🇸 Espagnole</option>
-              <option value="IT">🇮🇹 Italienne</option>
-              <option value="PT">🇧🇷 Portugaise</option>
               <option value="CN">🇨🇳 Chinoise</option>
-              <option value="TW">🇹🇼 Taïwanaise</option>
             </select>
             <select class="filter-select" id="cardsRarityFilter"><option value="all">Toutes raretés</option></select>
             <select class="filter-select" id="cardsConditionFilter">
@@ -146,6 +103,7 @@
               <option value="Excellent">Excellent</option>
               <option value="Good">Good</option>
               <option value="Played">Played</option>
+              <option value="Poor">Poor</option>
             </select>
             <select class="filter-select" id="cardsSortFilter">
               <option value="recent">Plus récentes</option>
@@ -187,9 +145,8 @@
             <select class="filter-select" id="sealedOriginFilter">
               <option value="all">Toutes provenances</option>
               <option value="FR">🇫🇷 Française</option>
-              <option value="EN">🇬🇧 Anglaise</option>
               <option value="JA">🇯🇵 Japonaise</option>
-              <option value="KO">🇰🇷 Coréenne</option>
+              <option value="CN">🇨🇳 Chinoise</option>
             </select>
             <select class="filter-select" id="sealedSortFilter">
               <option value="recent">Plus récents</option>
@@ -219,9 +176,73 @@
     document.addEventListener('DOMContentLoaded', async () => {
       injectFooter();
       await buildFilters();
+      initCustomSelects();
       attachFilterListeners();
       switchCategory('all');
     });
+
+    // ─── CUSTOM SELECT DROPDOWNS ───
+    function initCustomSelects() {
+      document.querySelectorAll('.filter-select').forEach(sel => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'custom-select';
+
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-select-trigger';
+        trigger.textContent = sel.options[sel.selectedIndex]?.textContent || '';
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'custom-select-dropdown';
+
+        function buildOptions() {
+          dropdown.innerHTML = '';
+          Array.from(sel.options).forEach(opt => {
+            const item = document.createElement('div');
+            item.className = 'custom-select-option' + (opt.value === sel.value ? ' selected' : '');
+            item.dataset.value = opt.value;
+            item.textContent = opt.textContent;
+            item.addEventListener('click', (e) => {
+              e.stopPropagation();
+              sel.value = opt.value;
+              sel.dispatchEvent(new Event('change'));
+              trigger.textContent = opt.textContent;
+              dropdown.querySelectorAll('.custom-select-option').forEach(o => o.classList.remove('selected'));
+              item.classList.add('selected');
+              wrapper.classList.remove('open');
+            });
+            dropdown.appendChild(item);
+          });
+        }
+
+        buildOptions();
+
+        // Watch for dynamically added options
+        const observer = new MutationObserver(() => {
+          buildOptions();
+          trigger.textContent = sel.options[sel.selectedIndex]?.textContent || '';
+        });
+        observer.observe(sel, { childList: true });
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // Close all other custom selects
+          document.querySelectorAll('.custom-select.open').forEach(cs => {
+            if (cs !== wrapper) cs.classList.remove('open');
+          });
+          wrapper.classList.toggle('open');
+        });
+
+        sel.parentNode.insertBefore(wrapper, sel);
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(dropdown);
+        wrapper.appendChild(sel);
+      });
+
+      // Close on click outside
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-select.open').forEach(cs => cs.classList.remove('open'));
+      });
+    }
 
     // ─── BUILD DYNAMIC FILTERS ───
     async function buildFilters() {
@@ -247,7 +268,7 @@
       });
 
       // Populate all set filter dropdowns
-      ['allSetFilter', 'cardsSetFilter', 'sealedSetFilter'].forEach(id => {
+      ['cardsSetFilter', 'sealedSetFilter'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         allSets.forEach(s => {
@@ -279,10 +300,6 @@
     }
 
     function attachFilterListeners() {
-      // All view
-      ['allSetFilter', 'allTypeFilter', 'allOriginFilter'].forEach(id => {
-        document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadAllProducts(); });
-      });
       // Cards view
       ['cardsSetFilter', 'cardsOriginFilter', 'cardsRarityFilter', 'cardsConditionFilter', 'cardsSortFilter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadCards(); });
@@ -312,10 +329,13 @@
     }
 
     function renderCurrentView() {
+      // Reset global listing index to avoid stale references
+      window._shopListings = [];
+      window._shopListingsCounter = 0;
+
       if (currentCategory === 'all') {
-        loadNouveautes();
-        loadBestsellers();
-        loadAllProducts();
+        loadNouveautesSealed();
+        loadNouveautesCards();
       } else if (currentCategory === 'cards') {
         loadCards();
       } else if (currentCategory === 'sealed') {
@@ -348,33 +368,18 @@
     }
 
     // ─── ALL VIEW ───
-    function loadNouveautes() {
-      const row = document.getElementById('nouveautesRow');
-      let listings = applySearch(getAdminListings());
-      if (listings.length === 0) { row.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Aucun produit disponible.</p>'; return; }
-      row.innerHTML = listings.slice(0, 10).map((l, i) => buildListingHTML(l, i)).join('');
+    function loadNouveautesSealed() {
+      const row = document.getElementById('nouveautesSealedRow');
+      let listings = applySearch(getAdminListings()).filter(l => (l.type || 'Carte') !== 'Carte');
+      if (listings.length === 0) { row.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Aucun produit scellé disponible.</p>'; return; }
+      row.innerHTML = listings.slice(0, 10).map((l, i) => buildListingHTML(l)).join('');
     }
 
-    function loadBestsellers() {
-      const grid = document.getElementById('bestsellersGrid');
-      let listings = applySearch(getAdminListings());
-      if (listings.length === 0) { grid.innerHTML = '<p style="color:var(--text-muted);">Aucun produit en vente.</p>'; return; }
-      const sorted = [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-      grid.innerHTML = sorted.slice(0, 4).map((l, i) => buildListingHTML(l, i)).join('');
-    }
-
-    function loadAllProducts() {
-      const grid = document.getElementById('allGrid');
-      let listings = applySearch(getAdminListings());
-
-      const setVal = document.getElementById('allSetFilter').value;
-      if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
-
-      const typeVal = document.getElementById('allTypeFilter').value;
-      if (typeVal !== 'all') listings = listings.filter(l => (l.type || 'Carte') === typeVal);
-
-      listings = applyOriginFilter(listings, 'allOriginFilter');
-      paginate(listings, grid, 'allPagination', loadAllProducts);
+    function loadNouveautesCards() {
+      const row = document.getElementById('nouveautesCardsRow');
+      let listings = applySearch(getAdminListings()).filter(l => (l.type || 'Carte') === 'Carte');
+      if (listings.length === 0) { row.innerHTML = '<p style="color:var(--text-muted);padding:20px;">Aucune carte disponible.</p>'; return; }
+      row.innerHTML = listings.slice(0, 10).map((l, i) => buildListingHTML(l)).join('');
     }
 
     // ─── CARDS VIEW ───
@@ -421,7 +426,7 @@
       const paged = listings.slice(start, start + perPage);
 
       if (paged.length > 0) {
-        grid.innerHTML = paged.map((l, i) => buildListingHTML(l, start + i)).join('');
+        grid.innerHTML = paged.map(l => buildListingHTML(l)).join('');
         buildPagination(total, pagId, reloadFn);
       } else {
         grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucun produit trouvé.</p>';

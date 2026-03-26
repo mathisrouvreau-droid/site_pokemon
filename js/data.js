@@ -136,8 +136,10 @@ const TCGdex = {
 // ─── Build HTML for admin listings ───
 // Store listings globally for cart reference
 window._shopListings = [];
+window._shopListingsCounter = 0;
 
-function buildListingHTML(listing, index) {
+function buildListingHTML(listing) {
+  const index = window._shopListingsCounter++;
   const condClassMap = { 'Neuf':'mint', 'Mint':'mint','Near Mint':'nm','Excellent':'ex','Good':'good','Played':'played','Poor':'played' };
   const cc = condClassMap[listing.condition] || 'nm';
   const type = listing.type || 'Carte';
@@ -154,13 +156,14 @@ function buildListingHTML(listing, index) {
   const originFlags = {'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'};
   const flag = originFlags[origin] || '🇫🇷';
 
-  // Store listing in global array so we can reference it from onclick without inline data
+  // Store listing in global array with unique index
   window._shopListings[index] = listing;
 
   return `
     <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}" data-type="${type}" data-origin="${origin}" onclick="openListingDetail(${index})" style="cursor:pointer;">
       <div class="poke-card-img">
         ${type !== 'Carte' ? `<span class="card-badge hot" style="background:${typeColor};">${type}</span>` : ''}
+        ${!isCard ? `<span style="position:absolute;bottom:10px;left:10px;padding:4px 10px;border-radius:50px;font-size:0.65rem;font-weight:700;letter-spacing:0.05em;z-index:2;${(listing.stockQty || 0) > 0 ? 'background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.25);' : 'background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.25);'}">${(listing.stockQty || 0) > 0 ? 'En stock' : 'Hors stock'}</span>` : ''}
         <span style="position:absolute;top:10px;right:10px;font-size:1.1rem;z-index:2;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${flag}</span>
         ${listing.image ? `<img src="${listing.image}" alt="${listing.name}" loading="lazy" style="width:100%;height:100%;object-fit:${objectFit};position:absolute;inset:0;">` : `
         <div class="card-visual">
@@ -173,23 +176,70 @@ function buildListingHTML(listing, index) {
         <div class="poke-card-set">${listing.set || ''}</div>
         <div class="poke-card-name">${listing.name}</div>
         <div class="poke-card-rarity">
-          ${listing.rarity || ''} <span class="condition-badge condition-${cc}">${listing.condition}</span>
+          ${isCard ? `${listing.rarity || ''} <span class="condition-badge condition-${cc}">${listing.condition}</span>` : `<span style="color:${typeColor};font-weight:600;">${type}</span>`}
         </div>
         <div class="poke-card-footer">
           <div class="poke-card-price">${parseFloat(listing.price).toFixed(2)}&nbsp;€</div>
+          ${!isCard && (listing.stockQty || 0) <= 0 ? `
+          <button class="add-cart-btn" disabled style="opacity:0.3;cursor:not-allowed;pointer-events:none;" title="Hors stock">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          </button>` : `
           <button class="add-cart-btn" onclick="event.stopPropagation();addListingToCart(${index})" title="Ajouter au panier">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-          </button>
+          </button>`}
         </div>
       </div>
     </div>`;
+}
+
+// Modal quantity state
+window._modalQty = 1;
+
+function changeModalQty(delta, index) {
+  const listing = window._shopListings[index];
+  if (!listing) return;
+  const type = listing.type || 'Carte';
+  const maxQty = type === 'Carte' ? 1 : (listing.stockQty || 1);
+  window._modalQty = Math.max(1, Math.min(maxQty, window._modalQty + delta));
+
+  const qtyEl = document.getElementById('modalQtyValue');
+  if (qtyEl) qtyEl.textContent = window._modalQty;
+
+  // Update displayed price
+  const priceEl = document.getElementById('modalPriceDisplay');
+  if (priceEl) {
+    const total = (parseFloat(listing.price) * window._modalQty).toFixed(2);
+    priceEl.innerHTML = window._modalQty > 1
+      ? `${total}&nbsp;€ <span style="font-size:0.85rem;font-weight:500;color:var(--text-muted);">(${parseFloat(listing.price).toFixed(2)} € / unité)</span>`
+      : `${total}&nbsp;€`;
+  }
+}
+
+function addListingToCartQty(index) {
+  const listing = window._shopListings[index];
+  if (!listing) return;
+  const qty = window._modalQty || 1;
+  for (let i = 0; i < qty; i++) {
+    cart.push({
+      id: 'listing-' + index + '-' + Date.now() + '-' + i,
+      name: listing.name,
+      set: listing.set || '',
+      price: parseFloat(listing.price),
+      image: listing.image || '',
+    });
+  }
+  saveCart();
+  updateCartCount();
+  renderCartItems();
+  showToast(`${listing.name}${qty > 1 ? ' x' + qty : ''} ajouté au panier`);
+  window._modalQty = 1;
 }
 
 function addListingToCart(index) {
   const listing = window._shopListings[index];
   if (!listing) return;
   cart.push({
-    id: 'listing-' + index,
+    id: 'listing-' + index + '-' + Date.now(),
     name: listing.name,
     set: listing.set || '',
     price: parseFloat(listing.price),
@@ -230,6 +280,8 @@ function openListingDetail(index) {
   const typeColors = { 'Carte':'var(--holo-1)','Booster':'#f97316','ETB':'#a855f7','Coffret':'#22d3ee','Display':'#ec4899','Bundle':'#4ade80','Autre':'var(--text-muted)' };
   const typeColor = typeColors[type] || 'var(--text-muted)';
 
+  window._modalQty = 1;
+
   const modal = document.createElement('div');
   modal.id = 'listingModal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(16px) saturate(1.3);padding:20px;';
@@ -261,12 +313,13 @@ function openListingDetail(index) {
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
           <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);color:${typeColor};">${type}</span>
           <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">${{'FR':'🇫🇷 Française','EN':'🇬🇧 Anglaise','JA':'🇯🇵 Japonaise','KO':'🇰🇷 Coréenne','DE':'🇩🇪 Allemande','ES':'🇪🇸 Espagnole','IT':'🇮🇹 Italienne','PT':'🇧🇷 Portugaise','CN':'🇨🇳 Chinoise','TW':'🇹🇼 Taïwanaise'}[listing.origin] || '🇫🇷 Française'}</span>
-          <span class="condition-badge condition-${cc}" style="font-size:0.7rem;">${listing.condition}</span>
-          ${listing.rarity ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${listing.rarity}</span>` : ''}
+          ${type === 'Carte' ? `<span class="condition-badge condition-${cc}" style="font-size:0.7rem;">${listing.condition}</span>` : ''}
+          ${type === 'Carte' && listing.rarity ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${listing.rarity}</span>` : ''}
+          ${type !== 'Carte' ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:700;letter-spacing:0.05em;${(listing.stockQty || 0) > 0 ? 'background:rgba(74,222,128,0.12);color:#4ade80;border:1px solid rgba(74,222,128,0.2);' : 'background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'}">${(listing.stockQty || 0) > 0 ? (listing.stockQty + ' en stock') : 'Hors stock'}</span>` : ''}
         </div>
 
         <!-- Price -->
-        <div style="font-family:var(--font-display);font-size:2rem;font-weight:800;margin-bottom:24px;">
+        <div style="font-family:var(--font-display);font-size:2rem;font-weight:800;margin-bottom:8px;" id="modalPriceDisplay">
           ${parseFloat(listing.price).toFixed(2)}&nbsp;€
         </div>
 
@@ -287,15 +340,20 @@ function openListingDetail(index) {
               <div style="font-size:0.85rem;font-weight:600;">${type}</div>
             </div>
             <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Langue</div>
+              <div style="font-size:0.85rem;font-weight:600;">${{'FR':'Française','EN':'Anglaise','JA':'Japonaise','KO':'Coréenne','DE':'Allemande','ES':'Espagnole','IT':'Italienne','PT':'Portugaise','CN':'Chinoise','TW':'Taïwanaise'}[listing.origin] || 'Française'}</div>
+            </div>
+            ${type === 'Carte' ? `
+            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">État</div>
               <div style="font-size:0.85rem;font-weight:600;">${listing.condition}</div>
-            </div>
+            </div>` : ''}
             ${listing.set ? `
             <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Extension</div>
               <div style="font-size:0.85rem;font-weight:600;">${listing.set}</div>
             </div>` : ''}
-            ${listing.rarity ? `
+            ${type === 'Carte' && listing.rarity ? `
             <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Rareté</div>
               <div style="font-size:0.85rem;font-weight:600;">${listing.rarity}</div>
@@ -303,11 +361,24 @@ function openListingDetail(index) {
           </div>
         </div>
 
-        <!-- Add to cart button -->
-        <button onclick="event.stopPropagation();addListingToCart(${index});document.getElementById('listingModal').remove();" style="width:100%;padding:16px;border-radius:12px;font-size:1rem;font-weight:600;background:linear-gradient(135deg,#4dc9f6,#7c3aed);color:#fff;border:none;cursor:pointer;transition:0.3s ease;display:flex;align-items:center;justify-content:center;gap:10px;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(77,201,246,0.25)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <!-- Quantity + Add to cart -->
+        ${(type !== 'Carte' && (listing.stockQty || 0) <= 0) ? `
+        <button disabled style="width:100%;padding:16px;border-radius:12px;font-size:1rem;font-weight:600;background:rgba(255,255,255,0.06);color:var(--text-muted);border:1px solid rgba(255,255,255,0.06);cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:10px;">
+          Hors stock
+        </button>` : `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);">Quantité</span>
+          <div style="display:flex;align-items:center;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.03);">
+            <button onclick="changeModalQty(-1,${index})" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:1.1rem;transition:0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">−</button>
+            <span id="modalQtyValue" style="min-width:36px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:0.95rem;">1</span>
+            <button onclick="changeModalQty(1,${index})" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:1.1rem;transition:0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">+</button>
+          </div>
+          ${type !== 'Carte' ? `<span style="font-size:0.75rem;color:var(--text-muted);" id="modalStockHint">${listing.stockQty || 1} disponible(s)</span>` : ''}
+        </div>
+        <button id="modalAddCartBtn" onclick="event.stopPropagation();addListingToCartQty(${index});document.getElementById('listingModal').remove();" style="width:100%;padding:16px;border-radius:12px;font-size:1rem;font-weight:600;background:linear-gradient(135deg,#4dc9f6,#7c3aed);color:#fff;border:none;cursor:pointer;transition:0.3s ease;display:flex;align-items:center;justify-content:center;gap:10px;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(77,201,246,0.25)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
           Ajouter au panier
-        </button>
+        </button>`}
       </div>
     </div>
   `;
