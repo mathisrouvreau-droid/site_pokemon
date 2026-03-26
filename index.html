@@ -116,7 +116,13 @@
 
   </main>
 
-  <!-- Scripts -->
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/db.js"></script>
+  <!-- App -->
   <script src="js/data.js"></script>
   <script src="js/components.js"></script>
   <script src="js/main.js"></script>
@@ -216,9 +222,14 @@
         return;
       }
 
-      // Show top 4 most expensive
-      const sorted = [...listings].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-      grid.innerHTML = sorted.slice(0, 4).map((l, i) => buildListingHTML(l)).join('');
+      // Show top 4 most expensive cards only (no sealed products)
+      const cardsOnly = listings.filter(l => (l.type || 'Carte') === 'Carte');
+      if (cardsOnly.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Aucune carte en vente pour le moment.</p>';
+        return;
+      }
+      const sorted = [...cardsOnly].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+      grid.innerHTML = sorted.slice(0, 4).map(l => buildListingHTML(l)).join('');
     }
 
     // ─── INIT ───
