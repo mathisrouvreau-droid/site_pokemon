@@ -6,8 +6,8 @@
 // NOTE: Default admin credentials — in production, use hashed passwords and server-side auth.
 // These are stored in localStorage on first init and can be changed from the admin panel.
 const DEFAULT_ADMIN = {
-  email: 'admin@holofoil.fr',
-  password: 'ChangezCeMotDePasse!',
+  email: 'jojodogm@gmail.com',
+  password: 'Jojolulu@20042002MIMO',
   role: 'owner'
 };
 
