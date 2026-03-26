@@ -12,12 +12,13 @@
 
 // ─── FIREBASE CONFIG (à remplacer avec vos valeurs) ───
 const firebaseConfig = {
-  apiKey: "VOTRE_API_KEY",
-  authDomain: "VOTRE_PROJET.firebaseapp.com",
-  projectId: "VOTRE_PROJECT_ID",
-  storageBucket: "VOTRE_PROJET.firebasestorage.app",
-  messagingSenderId: "VOTRE_SENDER_ID",
-  appId: "VOTRE_APP_ID"
+  apiKey: "AIzaSyBXP7SMHBfvewIs5fINM8_9xnmbGmkReQ0",
+  authDomain: "holofoil-14beb.firebaseapp.com",
+  projectId: "holofoil-14beb",
+  storageBucket: "holofoil-14beb.firebasestorage.app",
+  messagingSenderId: "658411672131",
+  appId: "1:658411672131:web:b1668cb09036be4e833af6",
+  measurementId: "G-DHRNKV1HPY"
 };
 
 // ─── INIT ───
