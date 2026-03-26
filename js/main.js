@@ -97,12 +97,12 @@ function renderCartItems() {
         <div class="cart-item-name">${item.name}</div>
         <div class="cart-item-set">${item.set || ''}</div>
       </div>
-      <div class="cart-item-price">${item.price.toFixed(2)}&nbsp;€</div>
+      <div class="cart-item-price">${(item.price || 0).toFixed(2)}&nbsp;€</div>
       <button class="cart-item-remove" onclick="removeFromCart(${i})" title="Retirer">✕</button>
     </div>
   `).join('');
 
-  const total = cart.reduce((s, c) => s + c.price, 0);
+  const total = cart.reduce((s, c) => s + (c.price || 0), 0);
   if (totalEl) totalEl.textContent = total.toFixed(2) + ' €';
 }
 

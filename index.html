@@ -107,7 +107,7 @@
           <h2>Restez informé des <span class="holo-text">nouveautés</span></h2>
           <p>Recevez en avant-première nos nouvelles cartes, offres exclusives et bons plans.</p>
           <form class="newsletter-form" onsubmit="return false;">
-            <input type="email" class="newsletter-input" placeholder="votre@email.com">
+            <input type="email" class="newsletter-input" placeholder="votre@email.com" aria-label="Adresse email pour la newsletter">
             <button type="button" class="newsletter-submit" onclick="showToast('Inscription confirmée !')">S'inscrire</button>
           </form>
         </div>
@@ -147,48 +147,26 @@
 
       // Curated card image URLs — varied extensions, pre-2016 focus + requested cards
       const cards = [
-        // Donphan Prime — HGSS
-        'https://assets.tcgdex.net/fr/hgss/hgss1/107/high.webp',
-        // ★ Requested: Ramoloss et Psykokwak GX Alt Art — Harmonie des Esprits
-        'https://assets.tcgdex.net/fr/sm/sm11/218/high.webp',
-        // ★ Requested: Psykokwak — Illustration Rare 151
-        'https://assets.tcgdex.net/fr/sv/sv03.5/175/high.webp',
-        // --- EX era (pre-2016) ---
-        // Dracaufeu ex — EX Rouge Feu Vert Feuille
-        'https://assets.tcgdex.net/fr/ex/ex6/105/high.webp',
-        // Rayquaza ex — EX Deoxys
-        'https://assets.tcgdex.net/fr/ex/ex8/102/high.webp',
-        // Mewtwo ex — EX Rubis & Saphir
-        'https://assets.tcgdex.net/fr/ex/ex1/101/high.webp',
-        // Groudon ex — EX Créateurs de Légendes
-        'https://assets.tcgdex.net/fr/ex/ex12/93/high.webp',
-        // --- DP / Niv.X (EN images — FR unavailable) ---
-        // Dialga Niv.X — DP Éveil des Légendes
-        'https://assets.tcgdex.net/en/dp/dp4/105/high.webp',
-        // Gardevoir Niv.X — DP Merveilles Secrètes
-        'https://assets.tcgdex.net/en/dp/dp3/131/high.webp',
-        // --- HGSS / Prime ---
-        // Typhlosion Prime — HGSS
-        'https://assets.tcgdex.net/fr/hgss/hgss1/110/high.webp',
-        // ★ Requested: Lugia V Full Art 186/195 — Tempête Argentée
-        'https://assets.tcgdex.net/fr/swsh/swsh12/186/high.webp',
-        // --- SWSH VMAX / VSTAR (Alt Arts) ---
-        // Dracaufeu VMAX — Ténèbres Embrasées
-        'https://assets.tcgdex.net/fr/swsh/swsh3/20/high.webp',
-        // Pikachu VMAX — Voltage Éclatant
-        'https://assets.tcgdex.net/fr/swsh/swsh4/44/high.webp',
-        // Rayquaza VMAX Alt Art — Évolution Céleste
-        'https://assets.tcgdex.net/fr/swsh/swsh7/217/high.webp',
-        // Giratina VSTAR Alt Art — Origine Perdue
-        'https://assets.tcgdex.net/fr/swsh/swsh11/201/high.webp',
-        // --- XY era Full Art ---
-        // Mewtwo EX Full Art — XY Évolutions
-        'https://assets.tcgdex.net/fr/xy/xy12/103/high.webp',
-        // Dracaufeu EX — XY Étincelles
-        'https://assets.tcgdex.net/fr/xy/xy2/11/high.webp',
-        // --- BW era Full Art ---
-        // Reshiram Full Art — Noir & Blanc
-        'https://assets.tcgdex.net/fr/bw/bw1/113/high.webp',
+        // Mélange varié — Lugia fixé en position 11
+        'https://assets.tcgdex.net/fr/swsh/swsh3/20/high.webp',       // Dracaufeu VMAX
+        'https://assets.tcgdex.net/fr/ex/ex8/102/high.webp',          // Rayquaza ex
+        'https://assets.tcgdex.net/fr/sv/sv03.5/175/high.webp',       // Psykokwak Illustration Rare
+        'https://assets.tcgdex.net/en/dp/dp3/131/high.webp',          // Gardevoir Niv.X
+        'https://assets.tcgdex.net/fr/swsh/swsh11/201/high.webp',     // Giratina VSTAR Alt Art
+        'https://assets.tcgdex.net/fr/xy/xy12/103/high.webp',         // Mewtwo EX Full Art
+        'https://assets.tcgdex.net/fr/hgss/hgss1/110/high.webp',      // Typhlosion Prime
+        'https://assets.tcgdex.net/fr/ex/ex6/105/high.webp',          // Dracaufeu ex
+        'https://assets.tcgdex.net/fr/swsh/swsh4/44/high.webp',       // Pikachu VMAX
+        'https://assets.tcgdex.net/fr/sm/sm11/218/high.webp',         // Ramoloss & Psykokwak GX
+        // ★ Lugia V Full Art — position fixe
+        'https://assets.tcgdex.net/fr/swsh/swsh12/186/high.webp',     // Lugia V Full Art
+        'https://assets.tcgdex.net/fr/ex/ex12/93/high.webp',          // Groudon ex
+        'https://assets.tcgdex.net/fr/bw/bw1/113/high.webp',          // Reshiram Full Art
+        'https://assets.tcgdex.net/en/dp/dp4/105/high.webp',          // Dialga Niv.X
+        'https://assets.tcgdex.net/fr/swsh/swsh7/217/high.webp',      // Rayquaza VMAX Alt Art
+        'https://assets.tcgdex.net/fr/hgss/hgss1/107/high.webp',      // Donphan Prime
+        'https://assets.tcgdex.net/fr/ex/ex1/101/high.webp',          // Mewtwo ex
+        'https://assets.tcgdex.net/fr/xy/xy2/11/high.webp',           // Dracaufeu EX
       ];
 
       mosaic.innerHTML = cards.map(url => `

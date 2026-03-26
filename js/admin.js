@@ -3,9 +3,11 @@
    ═══════════════════════════════════════ */
 
 // ─── DEFAULT DATA ───
+// NOTE: Default admin credentials — in production, use hashed passwords and server-side auth.
+// These are stored in localStorage on first init and can be changed from the admin panel.
 const DEFAULT_ADMIN = {
-  email: 'jojodogm@gmail.com',
-  password: 'Jojo@26092004MIMOSA',
+  email: 'admin@holofoil.fr',
+  password: 'ChangezCeMotDePasse!',
   role: 'owner'
 };
 
@@ -977,14 +979,14 @@ function isTCGPocketCard(card) {
 async function fetchCardsFromLang(lang, query) {
   try {
     const url = `https://api.tcgdex.net/v2/${lang}/cards?name=like:${encodeURIComponent(query)}&pagination:itemsPerPage=50`;
-    console.log(`[Holofoil] Fetching ${lang}:`, url);
+    // console.log(`[Holofoil] Fetching ${lang}:`, url);
     const res = await fetch(url);
-    if (!res.ok) { console.warn(`[Holofoil] ${lang} returned ${res.status}`); return []; }
+    if (!res.ok) { return []; }
     const data = await res.json();
     const filtered = data.filter(c => !isTCGPocketCard(c)).map(c => ({ ...c, _lang: lang }));
-    console.log(`[Holofoil] ${lang} results: ${filtered.length} (raw: ${data.length})`);
+    // console.log(`[Holofoil] ${lang} results: ${filtered.length} (raw: ${data.length})`);
     return filtered;
-  } catch (err) { console.error(`[Holofoil] ${lang} error:`, err); return []; }
+  } catch (err) { /* console.error(`[Holofoil] ${lang} error:`, err); */ return []; }
 }
 
 async function searchApi() {
@@ -1012,7 +1014,7 @@ async function searchApi() {
     }
   }
 
-  console.log('[Holofoil] Search:', query, '→ JA:', jaName || '(no translation)');
+  // console.log('[Holofoil] Search:', query, '→ JA:', jaName || '(no translation)');
 
   // Search FR + EN + JA (by translated name) all in parallel
   const searches = [
@@ -1033,7 +1035,7 @@ async function searchApi() {
   for (const batch of jaSearches) {
     for (const c of (batch || [])) cardsJA.push(c);
   }
-  console.log(`[Holofoil] Merged: FR=${cardsFR.length} EN=${cardsEN.length} JA=${cardsJA.length}`);
+  // console.log(`[Holofoil] Merged: FR=${cardsFR.length} EN=${cardsEN.length} JA=${cardsJA.length}`);
 
   // Deduplicate: FR cards, then JA cards (as separate entries!), then EN
   const cardMap = new Map();
@@ -1074,7 +1076,8 @@ async function searchApi() {
   }
 
   if (allCards.length === 0) {
-    results.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat pour "${query}". Essayez en français, anglais ou japonais.</p>`;
+    const safeQuery = query.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    results.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;padding:12px;">Aucun résultat pour "${safeQuery}". Essayez en français, anglais ou japonais.</p>`;
     return;
   }
 

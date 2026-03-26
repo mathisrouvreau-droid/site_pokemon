@@ -373,7 +373,7 @@ function openListingDetail(index) {
         ${listing.description ? `
           <div style="margin-bottom:24px;">
             <h4 style="font-size:0.8rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Description</h4>
-            <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap;">${listing.description}</p>
+            <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap;">${(listing.description || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
           </div>
         ` : ''}
 

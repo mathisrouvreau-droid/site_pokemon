@@ -291,6 +291,7 @@ function toggleGlobalSearch() {
     input.value = '';
     input.focus();
     document.getElementById('globalSearchResults').innerHTML = '<div class="search-empty">Tapez pour rechercher parmi tous les produits disponibles</div>';
+    input.removeEventListener('input', onGlobalSearchInput);
     input.addEventListener('input', onGlobalSearchInput);
   }
 }
@@ -324,7 +325,8 @@ function performGlobalSearch(query) {
   });
 
   if (matched.length === 0) {
-    resultsEl.innerHTML = `<div class="search-empty">Aucun résultat pour « ${query} »</div>`;
+    const safeQuery = query.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    resultsEl.innerHTML = `<div class="search-empty">Aucun résultat pour « ${safeQuery} »</div>`;
     return;
   }
 
