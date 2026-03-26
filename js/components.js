@@ -31,6 +31,10 @@ function injectNavbar() {
         ${ICONS.bag}
         <span class="cart-count" id="cartCount">0</span>
       </button>
+      <a href="compte.html" class="cart-btn" id="navAccountBtn" aria-label="Mon compte">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+        <span class="logged-dot" id="loggedDot"></span>
+      </a>
       <button class="mobile-toggle" id="mobileToggle" onclick="toggleMobileMenu()">
         <span></span><span></span><span></span>
       </button>
@@ -176,6 +180,7 @@ function injectFooter() {
             <li><a href="index.html">Accueil</a></li>
             <li><a href="boutique.html">Boutique</a></li>
             <li><a href="rachat.html">Rachat</a></li>
+            <li><a href="compte.html">Mon Compte</a></li>
           </ul>
         </div>
         <div class="footer-col">
@@ -235,7 +240,7 @@ function injectCartSidebar() {
         <span class="cart-total-label">Total</span>
         <span class="cart-total-price" id="cartTotalPrice">0.00 €</span>
       </div>
-      <button class="cart-checkout-btn" onclick="showToast('Paiement bientôt disponible !')">
+      <button class="cart-checkout-btn" onclick="placeOrder()">
         Passer commande
       </button>
     </div>
@@ -373,6 +378,52 @@ function openSearchResult(i) {
   openListingDetail(0);
 }
 
+// ─── PLACE ORDER ───
+function placeOrder() {
+  const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
+  if (!session) {
+    showToast('Connectez-vous pour passer commande');
+    setTimeout(() => { window.location.href = 'compte.html'; }, 1200);
+    return;
+  }
+
+  const cartItems = JSON.parse(localStorage.getItem('holofoil_cart') || '[]');
+  if (cartItems.length === 0) { showToast('Votre panier est vide'); return; }
+
+  const total = cartItems.reduce((s, i) => s + (i.price || 0), 0);
+
+  // Get user info for invoice
+  const users = JSON.parse(localStorage.getItem('holofoil_users') || '[]');
+  const user = users.find(u => u.email === session.email) || {};
+
+  const order = {
+    id: 'HOL-' + Date.now().toString(36).toUpperCase(),
+    email: session.email,
+    userName: (user.firstName || '') + ' ' + (user.lastName || ''),
+    userAddress: user.address || '',
+    userCity: user.city || '',
+    userZip: user.zip || '',
+    date: new Date().toLocaleDateString('fr-FR'),
+    items: cartItems.length,
+    details: cartItems.map(i => ({ name: i.name, set: i.set, price: i.price })),
+    total: total.toFixed(2),
+    ts: Date.now(),
+  };
+
+  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+  orders.push(order);
+  localStorage.setItem('holofoil_orders', JSON.stringify(orders));
+
+  // Clear cart
+  localStorage.setItem('holofoil_cart', '[]');
+  if (typeof cart !== 'undefined') { cart.length = 0; }
+  if (typeof updateCartCount === 'function') updateCartCount();
+  if (typeof renderCartItems === 'function') renderCartItems();
+  if (typeof toggleCart === 'function') toggleCart();
+
+  showToast('Commande enregistrée avec succès !');
+}
+
 // ESC key to close search
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeGlobalSearch();
@@ -390,6 +441,11 @@ function initComponents() {
   injectGlobalSearch();
   injectToast();
   injectCartSidebar();
+
+  // Show logged-in indicator
+  const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
+  const dot = document.getElementById('loggedDot');
+  if (dot && session) dot.classList.add('visible');
 }
 
 // Auto-run

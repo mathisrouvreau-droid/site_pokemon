@@ -780,6 +780,26 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 8px 30px rgba(77, 201, 246, 0.25);
 }
 
+/* Account button — logged in indicator */
+#navAccountBtn {
+  position: relative;
+  text-decoration: none;
+}
+#navAccountBtn .logged-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  border: 2px solid var(--bg-deep);
+  display: none;
+}
+#navAccountBtn .logged-dot.visible {
+  display: block;
+}
+
 /* ═══════════════════════════════════════
    GLOBAL SEARCH OVERLAY
    ═══════════════════════════════════════ */

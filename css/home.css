@@ -98,9 +98,9 @@
 .mosaic-card .mc-inner img {
   width: 100%;
   height: 100%;
-  object-fit: contain !important;
+  object-fit: cover !important;
   border-radius: inherit;
-  background: #0d0d18;
+  display: block;
 }
 .mosaic-card:nth-child(odd) { transform: rotate(1deg); }
 .mosaic-card:nth-child(even) { transform: rotate(-1.5deg); }

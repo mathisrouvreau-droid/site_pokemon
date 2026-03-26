@@ -115,7 +115,464 @@ function switchTab(tab) {
   const main = document.getElementById('adminMain');
 
   if (tab === 'cards') renderCardsTab(main);
+  else if (tab === 'accounting') renderAccountingTab(main);
   else if (tab === 'users') renderUsersTab(main);
+}
+
+// ═══════════════════════════════════════
+//  ACCOUNTING TAB
+// ═══════════════════════════════════════
+let accountingView = 'dashboard'; // 'dashboard' | 'orders' | 'stock' | 'expenses'
+
+function getExpenses() { return JSON.parse(localStorage.getItem('holofoil_expenses') || '[]'); }
+function saveExpenses(e) { localStorage.setItem('holofoil_expenses', JSON.stringify(e)); }
+
+function renderAccountingTab(container) {
+  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+  const listings = getListings();
+  const expenses = getExpenses();
+
+  // Calculs
+  const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+  const totalOrders = orders.length;
+  const totalCostStock = listings.reduce((s, l) => s + ((l.costPrice || 0) * (l.type === 'Carte' ? 1 : (l.stockQty || 1))), 0);
+  const totalSellValue = listings.reduce((s, l) => s + (l.price * (l.type === 'Carte' ? 1 : (l.stockQty || 1))), 0);
+  const totalPotentialMargin = totalSellValue - totalCostStock;
+  const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const netProfit = totalRevenue - totalExpenses;
+  const itemsWithCost = listings.filter(l => (l.costPrice || 0) > 0).length;
+  const itemsNoCost = listings.length - itemsWithCost;
+
+  const tabBtn = (id, label, icon) => `<button class="table-btn" onclick="accountingView='${id}';renderAccountingTab(document.getElementById('adminMain'))" style="${accountingView === id ? 'border-color:var(--holo-1);color:var(--holo-1);background:rgba(77,201,246,0.06);' : ''}">${icon} ${label}</button>`;
+
+  container.innerHTML = `
+    <div class="admin-header">
+      <h1>Comptabilité</h1>
+      <div class="admin-header-actions" style="gap:8px;">
+        ${tabBtn('dashboard','Tableau de bord','📊')}
+        ${tabBtn('orders','Commandes','🧾')}
+        ${tabBtn('stock','Stocks & Marges','📦')}
+        ${tabBtn('expenses','Dépenses','💸')}
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:32px;">
+      <div class="stat-card">
+        <div class="stat-label">CA réalisé</div>
+        <div class="stat-value" style="color:#4ade80;">${totalRevenue.toFixed(2)} €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Dépenses</div>
+        <div class="stat-value" style="color:#ef4444;">${totalExpenses.toFixed(2)} €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Bénéfice net</div>
+        <div class="stat-value" style="color:${netProfit >= 0 ? '#4ade80' : '#ef4444'};">${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Investissement stock</div>
+        <div class="stat-value">${totalCostStock.toFixed(2)} €</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">+Value potentielle</div>
+        <div class="stat-value" style="color:${totalPotentialMargin >= 0 ? '#4ade80' : '#ef4444'};">${totalPotentialMargin >= 0 ? '+' : ''}${totalPotentialMargin.toFixed(2)} €</div>
+      </div>
+    </div>
+
+    <div id="accountingContent"></div>
+  `;
+
+  if (accountingView === 'dashboard') renderDashboardView(orders, listings, expenses);
+  else if (accountingView === 'orders') renderOrdersView();
+  else if (accountingView === 'stock') renderStockView();
+  else if (accountingView === 'expenses') renderExpensesView();
+}
+
+// ─── DASHBOARD ───
+function renderDashboardView(orders, listings, expenses) {
+  const el = document.getElementById('accountingContent');
+  const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+  const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const itemsWithCost = listings.filter(l => (l.costPrice || 0) > 0);
+  const itemsNoCost = listings.filter(l => !(l.costPrice || 0));
+
+  // Top 5 most profitable items
+  const profitItems = [...listings].filter(l => l.costPrice > 0).map(l => {
+    const qty = (l.type === 'Carte') ? 1 : (l.stockQty || 1);
+    return { name: l.name, margin: l.price - l.costPrice, total: (l.price - l.costPrice) * qty, type: l.type || 'Carte' };
+  }).sort((a, b) => b.total - a.total).slice(0, 5);
+
+  // Recent orders
+  const recentOrders = [...orders].reverse().slice(0, 5);
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <!-- Left: P&L summary -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;">
+        <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:20px;">Compte de résultat</h3>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--text-secondary);">Ventes (${orders.length} commandes)</span>
+            <strong style="color:#4ade80;">+${totalRevenue.toFixed(2)} €</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--text-secondary);">Dépenses (${expenses.length} entrées)</span>
+            <strong style="color:#ef4444;">-${totalExpenses.toFixed(2)} €</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:1.1rem;">
+            <strong>Résultat net</strong>
+            <strong style="font-family:var(--font-display);font-size:1.2rem;color:${(totalRevenue - totalExpenses) >= 0 ? '#4ade80' : '#ef4444'};">${(totalRevenue - totalExpenses) >= 0 ? '+' : ''}${(totalRevenue - totalExpenses).toFixed(2)} €</strong>
+          </div>
+        </div>
+        ${itemsNoCost.length > 0 ? `<p style="margin-top:16px;padding:10px 14px;border-radius:8px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.15);font-size:0.78rem;color:#f97316;">⚠ ${itemsNoCost.length} produit(s) sans prix d'achat renseigné — <a href="#" onclick="event.preventDefault();accountingView='stock';renderAccountingTab(document.getElementById('adminMain'))" style="color:#f97316;text-decoration:underline;">compléter</a></p>` : ''}
+      </div>
+
+      <!-- Right: Top margins -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;">
+        <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:20px;">Top 5 — Meilleures marges</h3>
+        ${profitItems.length === 0 ? '<p style="color:var(--text-muted);font-size:0.85rem;">Renseignez les prix d\'achat pour voir les marges.</p>' : `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${profitItems.map((p, i) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;${i < profitItems.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
+              <span style="width:20px;font-size:0.75rem;color:var(--text-muted);font-weight:700;">#${i + 1}</span>
+              <span style="flex:1;font-size:0.85rem;font-weight:600;">${p.name}</span>
+              <span style="font-size:0.75rem;color:var(--text-muted);">+${p.margin.toFixed(2)} €/u</span>
+              <strong style="font-family:var(--font-display);color:#4ade80;">+${p.total.toFixed(2)} €</strong>
+            </div>
+          `).join('')}
+        </div>`}
+      </div>
+    </div>
+
+    <!-- Recent orders -->
+    ${recentOrders.length > 0 ? `
+    <div style="margin-top:24px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;">
+      <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:16px;">Dernières commandes</h3>
+      ${recentOrders.map(o => `
+        <div style="display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:0.8rem;font-family:var(--font-display);font-weight:600;min-width:110px;">${o.id || '—'}</span>
+          <span style="flex:1;font-size:0.85rem;color:var(--text-secondary);">${o.userName || o.email}</span>
+          <span style="font-size:0.8rem;color:var(--text-muted);">${o.date}</span>
+          <strong style="font-family:var(--font-display);">${parseFloat(o.total).toFixed(2)} €</strong>
+        </div>
+      `).join('')}
+    </div>` : ''}
+  `;
+}
+
+// ─── ORDERS VIEW ───
+function renderOrdersView() {
+  const el = document.getElementById('accountingContent');
+  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]').reverse();
+
+  if (orders.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>Aucune commande enregistrée.</p></div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>N° commande</th>
+            <th>Client</th>
+            <th>Date</th>
+            <th>Articles</th>
+            <th>Total</th>
+            <th>Facture</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orders.map((o, i) => `
+            <tr>
+              <td><strong style="font-family:var(--font-display);font-size:0.8rem;">${o.id || 'HOL-' + (o.ts || i)}</strong></td>
+              <td>
+                <div style="font-size:0.85rem;">${o.userName || o.email}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">${o.email}</div>
+              </td>
+              <td style="font-size:0.85rem;">${o.date}</td>
+              <td>${o.items} article${o.items > 1 ? 's' : ''}</td>
+              <td><strong>${parseFloat(o.total).toFixed(2)} €</strong></td>
+              <td>
+                <button class="table-btn" onclick="downloadInvoice(${i})" style="display:flex;align-items:center;gap:6px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                  PDF
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ─── STOCK VIEW (with inline cost editing) ───
+function renderStockView() {
+  const el = document.getElementById('accountingContent');
+  const listings = getListings();
+
+  if (listings.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>Aucun produit en stock.</p></div>';
+    return;
+  }
+
+  const totalCost = listings.reduce((s, l) => s + ((l.costPrice || 0) * (l.type === 'Carte' ? 1 : (l.stockQty || 1))), 0);
+  const totalSell = listings.reduce((s, l) => s + (l.price * (l.type === 'Carte' ? 1 : (l.stockQty || 1))), 0);
+
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:20px;">
+      <div style="padding:12px 20px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);font-size:0.85rem;">
+        Total investi : <strong>${totalCost.toFixed(2)} €</strong>
+      </div>
+      <div style="padding:12px 20px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);font-size:0.85rem;">
+        Valeur revente : <strong>${totalSell.toFixed(2)} €</strong>
+      </div>
+      <div style="padding:12px 20px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);font-size:0.85rem;">
+        +Value globale : <strong style="color:${(totalSell - totalCost) >= 0 ? '#4ade80' : '#ef4444'};">${(totalSell - totalCost) >= 0 ? '+' : ''}${(totalSell - totalCost).toFixed(2)} €</strong>
+      </div>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Produit</th>
+            <th>Type</th>
+            <th>Qté</th>
+            <th>Prix d'achat (modifiable)</th>
+            <th>Prix de vente</th>
+            <th>Marge / unité</th>
+            <th>+Value totale</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${listings.map((l, i) => {
+            const type = l.type || 'Carte';
+            const qty = type === 'Carte' ? 1 : (l.stockQty || 0);
+            const cost = l.costPrice || 0;
+            const sell = l.price || 0;
+            const marginUnit = sell - cost;
+            const marginTotal = marginUnit * qty;
+            const typeColors = { 'Carte':'var(--holo-1)', 'Booster':'#f97316', 'ETB':'#a855f7', 'Coffret':'#22d3ee', 'Display':'#ec4899', 'Bundle':'#4ade80' };
+            const tc = typeColors[type] || 'var(--text-muted)';
+            const mc = cost > 0 ? (marginUnit > 0 ? '#4ade80' : marginUnit < 0 ? '#ef4444' : 'var(--text-muted)') : 'var(--text-muted)';
+
+            return `
+              <tr>
+                <td>
+                  <div class="card-info">
+                    ${l.image ? `<img src="${l.image}" class="card-thumb" alt="">` : `<div class="card-thumb" style="background:var(--bg-elevated);"></div>`}
+                    <div class="card-info-text">
+                      <h4>${l.name}</h4>
+                      <p>${l.set || '—'}</p>
+                    </div>
+                  </div>
+                </td>
+                <td><span style="font-size:0.75rem;font-weight:600;color:${tc};">${type}</span></td>
+                <td><span style="font-weight:600;color:${qty > 0 ? '#4ade80' : '#ef4444'};">${qty}</span></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <input type="number" value="${cost || ''}" placeholder="0.00" step="0.01" min="0"
+                      style="width:90px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:0.85rem;font-family:inherit;outline:none;"
+                      onfocus="this.style.borderColor='var(--holo-1)'"
+                      onblur="this.style.borderColor='var(--border)';updateCostPrice(${i},this.value)">
+                    <span style="font-size:0.8rem;color:var(--text-muted);">€</span>
+                  </div>
+                </td>
+                <td><strong>${sell.toFixed(2)} €</strong></td>
+                <td><span style="font-weight:600;color:${mc};">${cost > 0 ? (marginUnit >= 0 ? '+' : '') + marginUnit.toFixed(2) + ' €' : '—'}</span></td>
+                <td><span style="font-weight:700;font-family:var(--font-display);color:${mc};">${cost > 0 ? (marginTotal >= 0 ? '+' : '') + marginTotal.toFixed(2) + ' €' : '—'}</span></td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function updateCostPrice(listingIndex, value) {
+  const listings = getListings();
+  if (!listings[listingIndex]) return;
+  listings[listingIndex].costPrice = parseFloat(value) || 0;
+  saveListings(listings);
+}
+
+// ─── EXPENSES VIEW ───
+function renderExpensesView() {
+  const el = document.getElementById('accountingContent');
+  const expenses = getExpenses();
+  const total = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+
+  el.innerHTML = `
+    <!-- Add expense form -->
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;">
+      <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:16px;">Ajouter une dépense</h3>
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:2;min-width:200px;">
+          <label style="display:block;font-size:0.75rem;font-weight:600;margin-bottom:6px;">Description *</label>
+          <input type="text" id="expDesc" placeholder="Ex: Achat lot 50 boosters, Frais d'envoi..." class="form-input" style="padding:10px 14px;font-size:0.85rem;">
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <label style="display:block;font-size:0.75rem;font-weight:600;margin-bottom:6px;">Montant (€) *</label>
+          <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0" class="form-input" style="padding:10px 14px;font-size:0.85rem;">
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <label style="display:block;font-size:0.75rem;font-weight:600;margin-bottom:6px;">Catégorie</label>
+          <select id="expCategory" class="form-select" style="padding:10px 14px;font-size:0.85rem;width:100%;">
+            <option value="stock">Achat stock</option>
+            <option value="shipping">Frais d'envoi</option>
+            <option value="packaging">Emballage</option>
+            <option value="platform">Frais plateforme</option>
+            <option value="other">Autre</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:130px;">
+          <label style="display:block;font-size:0.75rem;font-weight:600;margin-bottom:6px;">Date</label>
+          <input type="date" id="expDate" class="form-input" style="padding:10px 14px;font-size:0.85rem;" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        <button class="holo-btn-filled" onclick="addExpense()" style="padding:10px 24px;font-size:0.85rem;white-space:nowrap;">+ Ajouter</button>
+      </div>
+    </div>
+
+    <!-- Total -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:0.9rem;color:var(--text-secondary);">${expenses.length} dépense(s) enregistrée(s)</span>
+      <strong style="font-family:var(--font-display);font-size:1.1rem;color:#ef4444;">Total : ${total.toFixed(2)} €</strong>
+    </div>
+
+    <!-- Expenses table -->
+    ${expenses.length === 0 ? '<div class="empty-state"><p>Aucune dépense enregistrée.</p></div>' : `
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Catégorie</th>
+            <th>Montant</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${[...expenses].reverse().map((e, ri) => {
+            const i = expenses.length - 1 - ri;
+            const catLabels = { stock:'Achat stock', shipping:'Frais d\'envoi', packaging:'Emballage', platform:'Frais plateforme', other:'Autre' };
+            const catColors = { stock:'#a855f7', shipping:'#f97316', packaging:'#22d3ee', platform:'#ec4899', other:'var(--text-muted)' };
+            return `
+              <tr>
+                <td style="font-size:0.85rem;">${e.date ? new Date(e.date).toLocaleDateString('fr-FR') : '—'}</td>
+                <td style="font-size:0.85rem;">${e.description}</td>
+                <td><span style="padding:3px 10px;border-radius:50px;font-size:0.7rem;font-weight:600;background:${catColors[e.category] || 'var(--text-muted)'}20;color:${catColors[e.category] || 'var(--text-muted)'};">${catLabels[e.category] || e.category}</span></td>
+                <td><strong style="color:#ef4444;">${e.amount.toFixed(2)} €</strong></td>
+                <td><button class="table-btn danger" onclick="deleteExpense(${i})">Supprimer</button></td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+function addExpense() {
+  const desc = document.getElementById('expDesc').value.trim();
+  const amount = parseFloat(document.getElementById('expAmount').value);
+  const category = document.getElementById('expCategory').value;
+  const date = document.getElementById('expDate').value;
+
+  if (!desc) { alert('Veuillez entrer une description.'); return; }
+  if (!amount || amount <= 0) { alert('Veuillez entrer un montant valide.'); return; }
+
+  const expenses = getExpenses();
+  expenses.push({ description: desc, amount, category, date, ts: Date.now() });
+  saveExpenses(expenses);
+  renderAccountingTab(document.getElementById('adminMain'));
+}
+
+function deleteExpense(index) {
+  if (!confirm('Supprimer cette dépense ?')) return;
+  const expenses = getExpenses();
+  expenses.splice(index, 1);
+  saveExpenses(expenses);
+  renderAccountingTab(document.getElementById('adminMain'));
+}
+
+// ─── INVOICE PDF GENERATION ───
+function downloadInvoice(orderIndex) {
+  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]').reverse();
+  const o = orders[orderIndex];
+  if (!o) return;
+
+  const items = o.details || [{ name: 'Article', price: o.total }];
+  const invoiceId = o.id || 'HOL-' + (o.ts || orderIndex);
+
+  // Build invoice HTML
+  const invoiceHTML = `
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Facture ${invoiceId}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a2e; padding: 48px; max-width: 800px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 2px solid #e8e8f0; }
+  .logo { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+  .logo span { color: #4dc9f6; }
+  .invoice-info { text-align: right; font-size: 0.85rem; color: #666; }
+  .invoice-info strong { color: #1a1a2e; font-size: 1rem; }
+  .parties { display: flex; justify-content: space-between; margin-bottom: 40px; }
+  .party { font-size: 0.85rem; line-height: 1.7; }
+  .party h4 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: #999; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+  th { text-align: left; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #999; border-bottom: 2px solid #e8e8f0; }
+  td { padding: 14px 16px; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  .total-row { background: #f8f9fa; font-weight: 700; }
+  .total-row td { font-size: 1.05rem; border-top: 2px solid #e8e8f0; }
+  .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #e8e8f0; font-size: 0.75rem; color: #999; text-align: center; line-height: 1.6; }
+</style></head><body>
+  <div class="header">
+    <div>
+      <div class="logo">HOLO<span>FOIL</span></div>
+      <p style="font-size:0.8rem;color:#666;margin-top:4px;">Cartes Pokemon Premium</p>
+    </div>
+    <div class="invoice-info">
+      <strong>Facture ${invoiceId}</strong><br>
+      Date : ${o.date}<br>
+    </div>
+  </div>
+  <div class="parties">
+    <div class="party">
+      <h4>Vendeur</h4>
+      <strong>Holofoil</strong><br>
+      contact@holofoil.fr
+    </div>
+    <div class="party" style="text-align:right;">
+      <h4>Client</h4>
+      <strong>${o.userName || '—'}</strong><br>
+      ${o.email}<br>
+      ${o.userAddress ? o.userAddress + '<br>' : ''}
+      ${o.userCity ? o.userCity + (o.userZip ? ' ' + o.userZip : '') : ''}
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Produit</th><th>Set</th><th style="text-align:right;">Prix</th></tr></thead>
+    <tbody>
+      ${items.map((it, i) => `<tr><td>${i + 1}</td><td>${it.name}</td><td>${it.set || '—'}</td><td style="text-align:right;">${parseFloat(it.price).toFixed(2)} &euro;</td></tr>`).join('')}
+      <tr class="total-row"><td colspan="3" style="text-align:right;">Total</td><td style="text-align:right;">${parseFloat(o.total).toFixed(2)} &euro;</td></tr>
+    </tbody>
+  </table>
+  <div class="footer">
+    Holofoil &mdash; Cartes Pokemon Premium<br>
+    Merci pour votre achat !
+  </div>
+</body></html>`;
+
+  // Open in new window for print/save as PDF
+  const win = window.open('', '_blank');
+  win.document.write(invoiceHTML);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
 }
 
 // ═══════════════════════════════════════
@@ -282,8 +739,15 @@ function openCardModal(index = null) {
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Prix (€) *</label>
+            <label class="form-label">Prix de vente (€) *</label>
             <input type="number" class="form-input" id="modalCardPrice" placeholder="29.99" step="0.01" min="0" value="${listing?.price || ''}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Prix d'achat (€)</label>
+            <input type="number" class="form-input" id="modalCostPrice" placeholder="15.00" step="0.01" min="0" value="${listing?.costPrice || ''}">
+            <p style="font-size:0.65rem;color:var(--text-muted);margin-top:4px;">Usage interne — non visible par les clients</p>
           </div>
           <div class="form-group">
             <label class="form-label">État *</label>
@@ -814,6 +1278,7 @@ function saveCard() {
   const origin = document.getElementById('modalCardOrigin')?.value || 'FR';
   const rarity = document.getElementById('modalCardRarity')?.value.trim() || '';
   const description = document.getElementById('modalCardDesc')?.value.trim() || '';
+  const costPrice = parseFloat(document.getElementById('modalCostPrice')?.value) || 0;
 
   if (!name) { alert('Veuillez entrer le nom du produit.'); return; }
   if (!price || parseFloat(price) <= 0) { alert('Veuillez entrer un prix valide.'); return; }
@@ -842,7 +1307,7 @@ function saveCard() {
   const inStock = stockQty > 0;
 
   const listing = {
-    type, name, price: parseFloat(price), condition,
+    type, name, price: parseFloat(price), costPrice, condition,
     conditionClass: conditionClassMap[condition] || 'nm',
     set, origin, rarity, description, image, apiId, inStock, stockQty,
     date: new Date().toLocaleDateString('fr-FR'),
@@ -850,15 +1315,51 @@ function saveCard() {
 
   const listings = getListings();
 
+  // Check if product was out of stock and is now back in stock (for wishlist notifications)
+  let restockedProduct = null;
   if (editingId !== null) {
+    const old = listings[editingId];
+    if (old && (old.stockQty || 0) <= 0 && listing.stockQty > 0) {
+      restockedProduct = listing.name;
+    }
     listings[editingId] = listing;
   } else {
     listings.unshift(listing);
   }
 
   saveListings(listings);
+
+  // Notify wishlist users if product is back in stock
+  if (restockedProduct) {
+    notifyWishlistUsers(restockedProduct);
+  }
+
   closeCardModal();
   renderCardsTab(document.getElementById('adminMain'));
+}
+
+function notifyWishlistUsers(productName) {
+  const wishlist = JSON.parse(localStorage.getItem('holofoil_wishlist') || '[]');
+  const interested = wishlist.filter(w => w.product === productName);
+
+  if (interested.length === 0) return;
+
+  // Store notifications for users to see
+  const notifs = JSON.parse(localStorage.getItem('holofoil_notifications') || '[]');
+  interested.forEach(w => {
+    notifs.push({
+      email: w.email,
+      message: `"${productName}" est de retour en stock !`,
+      product: productName,
+      date: new Date().toISOString(),
+      read: false,
+    });
+  });
+  localStorage.setItem('holofoil_notifications', JSON.stringify(notifs));
+
+  // Show admin feedback
+  const emails = interested.map(w => w.email);
+  alert(`Retour en stock : ${productName}\n\n${interested.length} client(s) seront notifié(s) :\n${emails.join('\n')}`);
 }
 
 function editCard(index) {

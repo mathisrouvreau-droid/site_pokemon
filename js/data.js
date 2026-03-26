@@ -181,8 +181,8 @@ function buildListingHTML(listing) {
         <div class="poke-card-footer">
           <div class="poke-card-price">${parseFloat(listing.price).toFixed(2)}&nbsp;€</div>
           ${!isCard && (listing.stockQty || 0) <= 0 ? `
-          <button class="add-cart-btn" disabled style="opacity:0.3;cursor:not-allowed;pointer-events:none;" title="Hors stock">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          <button class="add-cart-btn" onclick="event.stopPropagation();toggleWishlist('${listing.name.replace(/'/g,"\\'")}');this.querySelector('svg').setAttribute('fill',isInWishlist('${listing.name.replace(/'/g,"\\'")}') ? '#ec4899' : 'none');this.style.borderColor=isInWishlist('${listing.name.replace(/'/g,"\\'")}') ? 'rgba(236,72,153,0.4)' : '';" title="Ajouter à la liste de souhaits" style="border-color:${isInWishlist(listing.name) ? 'rgba(236,72,153,0.4)' : ''};">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="${isInWishlist(listing.name) ? '#ec4899' : 'none'}" viewBox="0 0 24 24" stroke="#ec4899" stroke-width="2" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
           </button>` : `
           <button class="add-cart-btn" onclick="event.stopPropagation();addListingToCart(${index})" title="Ajouter au panier">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
@@ -254,6 +254,52 @@ function addListingToCart(index) {
 // ─── Get admin listings from localStorage ───
 function getAdminListings() {
   return JSON.parse(localStorage.getItem('holofoil_listings') || '[]');
+}
+
+// ─── WISHLIST ───
+function getWishlist() {
+  return JSON.parse(localStorage.getItem('holofoil_wishlist') || '[]');
+}
+
+function saveWishlist(list) {
+  localStorage.setItem('holofoil_wishlist', JSON.stringify(list));
+}
+
+function isInWishlist(productName) {
+  const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
+  if (!session) return false;
+  return getWishlist().some(w => w.email === session.email && w.product === productName);
+}
+
+function toggleWishlist(productName) {
+  const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
+  if (!session) {
+    showToast('Connectez-vous pour ajouter à votre liste de souhaits');
+    return;
+  }
+
+  let list = getWishlist();
+  const idx = list.findIndex(w => w.email === session.email && w.product === productName);
+
+  if (idx !== -1) {
+    list.splice(idx, 1);
+    saveWishlist(list);
+    showToast('Retiré de votre liste de souhaits');
+  } else {
+    list.push({ email: session.email, product: productName, date: new Date().toISOString() });
+    saveWishlist(list);
+    showToast('Ajouté à votre liste de souhaits — vous serez notifié par email');
+  }
+
+  // Update modal button if open
+  const btn = document.getElementById('modalWishBtn');
+  if (btn) {
+    const inList = isInWishlist(productName);
+    btn.querySelector('svg').setAttribute('fill', inList ? '#ec4899' : 'none');
+    btn.style.background = inList ? 'rgba(236,72,153,0.12)' : 'rgba(255,255,255,0.04)';
+    btn.style.color = inList ? '#ec4899' : 'var(--text-secondary)';
+    btn.childNodes[btn.childNodes.length - 1].textContent = inList ? 'Dans votre liste de souhaits' : 'Ajouter à ma liste de souhaits';
+  }
 }
 
 // ─── Cart helper for API cards ───
@@ -363,9 +409,14 @@ function openListingDetail(index) {
 
         <!-- Quantity + Add to cart -->
         ${(type !== 'Carte' && (listing.stockQty || 0) <= 0) ? `
-        <button disabled style="width:100%;padding:16px;border-radius:12px;font-size:1rem;font-weight:600;background:rgba(255,255,255,0.06);color:var(--text-muted);border:1px solid rgba(255,255,255,0.06);cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:10px;">
-          Hors stock
-        </button>` : `
+        <div style="margin-bottom:12px;">
+          <button onclick="event.stopPropagation();toggleWishlist('${listing.name.replace(/'/g,"\\'")}')" id="modalWishBtn" style="width:100%;padding:16px;border-radius:12px;font-size:0.95rem;font-weight:600;border:1px solid rgba(236,72,153,0.2);cursor:pointer;transition:0.3s ease;display:flex;align-items:center;justify-content:center;gap:10px;${isInWishlist(listing.name) ? 'background:rgba(236,72,153,0.12);color:#ec4899;' : 'background:rgba(255,255,255,0.04);color:var(--text-secondary);'}" onmouseover="this.style.borderColor='rgba(236,72,153,0.35)'" onmouseout="this.style.borderColor='rgba(236,72,153,0.2)'">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="${isInWishlist(listing.name) ? '#ec4899' : 'none'}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+            ${isInWishlist(listing.name) ? 'Dans votre liste de souhaits' : 'Ajouter à ma liste de souhaits'}
+          </button>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);text-align:center;">Vous serez notifié par email dès que ce produit sera de retour en stock.</p>
+        ` : `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
           <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);">Quantité</span>
           <div style="display:flex;align-items:center;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.03);">
