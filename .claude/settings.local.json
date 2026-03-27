@@ -38,7 +38,22 @@
       "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=%E3%83%AA%E3%82%B6%E3%83%BC%E3%83%89%E3%83%B3&pagination:itemsPerPage=10\")",
       "Bash(curl -s \"https://api.tcgdex.net/v2/ja/cards?name=リザードン&pagination:itemsPerPage=10\")",
       "Bash(curl -v -s \"https://api.tcgdex.net/v2/ja/cards?name=like:%E3%83%AA%E3%82%B6%E3%83%BC%E3%83%89%E3%83%B3&pagination:itemsPerPage=5\")",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(json.dumps\\(s\\)\\) for s in data]\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(s[''''id''''], s.get\\(''''name'''',''''''''\\)\\) for s in data.get\\(''''sets'''',[]\\)]\")",
+      "Bash(npm install:*)",
+      "Bash(firebase login:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(xargs wc:*)",
+      "Bash(wc -l \"/c/Users/Mathis/Documents/GitHub/site_pokemon/js/\"*.js)",
+      "Bash(wc:*)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(f''''{s[\"\"id\"\"]}|{s[\"\"name\"\"]}''''\\) for s in data[-30:]]\")",
+      "WebFetch(domain:projet151.fr)",
+      "WebFetch(domain:www.pokecardex.com)",
+      "WebFetch(domain:www.pokevalue.fr)",
+      "WebFetch(domain:www.pokemonpricetracker.com)",
+      "Bash(node -e \":*)"
     ]
   }
 }
