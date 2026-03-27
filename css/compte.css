@@ -391,3 +391,21 @@
   .account-form .form-row { grid-template-columns: 1fr; }
   .account-header { flex-direction: column; gap: 16px; align-items: flex-start; }
 }
+@media (max-width: 480px) {
+  .auth-card { padding: 28px 18px; max-width: 100%; border-radius: 16px; }
+  .auth-tabs button { padding: 10px 14px; font-size: 0.8rem; }
+  .auth-form .form-input { padding: 12px 14px; font-size: 0.85rem; }
+  .auth-form .form-label { font-size: 0.75rem; }
+  .profile-avatar { width: 60px; height: 60px; font-size: 1.2rem; }
+  .profile-name { font-size: 1rem; }
+  .profile-email { font-size: 0.78rem; }
+  .info-item { padding: 12px 14px; }
+  .info-item .info-label { font-size: 0.65rem; }
+  .info-item .info-value { font-size: 0.82rem; }
+  .account-section { padding: 20px; }
+  .account-section-title { font-size: 0.9rem; gap: 8px; }
+  .order-item { gap: 10px; padding: 12px 0; }
+  .order-icon { width: 36px; height: 36px; }
+  .order-info h4 { font-size: 0.82rem; }
+  .order-total { font-size: 0.9rem; }
+}

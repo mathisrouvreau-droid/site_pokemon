@@ -1032,3 +1032,31 @@ img { max-width: 100%; display: block; }
     max-height: 95vh;
   }
 }
+
+@media (max-width: 480px) {
+  .container { padding: 0 14px; }
+  .page-content { padding-top: 72px; }
+  .navbar { width: calc(100% - 16px); top: 8px; height: 50px; padding: 0 12px; border-radius: 14px; }
+  .navbar-logo { font-size: 1rem; }
+  .nav-links.open { padding: 16px 18px; gap: 14px; }
+  .nav-links.open a { font-size: 0.85rem; }
+  .search-overlay { padding-top: 60px; padding-left: 10px; padding-right: 10px; }
+  .search-input-wrap input { font-size: 0.9rem; }
+  .cart-sidebar { width: 100vw; max-width: 100vw; border-radius: 0; }
+  .cart-header, .cart-footer { padding: 16px; }
+  .cart-items { padding: 12px; }
+  .section-title { font-size: 1.5rem; }
+  .section-label { font-size: 0.65rem; }
+  .footer-col h4 { font-size: 0.85rem; }
+  .footer-col ul li a { font-size: 0.82rem; }
+  .holo-btn { padding: 12px 24px; font-size: 0.85rem; }
+  #listingModal > div > div:last-child,
+  #cardModal > div > div:last-child { padding: 20px !important; }
+  .poke-card-info { padding: 12px 14px; }
+  .poke-card-name { font-size: 0.82rem; }
+  .poke-card-set { font-size: 0.62rem; }
+  .poke-card-rarity { font-size: 0.7rem; }
+  .poke-card-price { font-size: 1rem; }
+  .poke-card:hover { transform: translateY(-3px); }
+  .add-cart-btn { width: 32px; height: 32px; }
+}

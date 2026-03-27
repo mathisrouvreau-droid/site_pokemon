@@ -4,6 +4,7 @@
 
 // ─── CART STATE (persisted in localStorage) ───
 let cart = JSON.parse(localStorage.getItem('holofoil_cart') || '[]');
+let appliedPromo = null; // { code, percent }
 
 // ─── DOM READY ───
 document.addEventListener('DOMContentLoaded', () => {
@@ -103,7 +104,62 @@ function renderCartItems() {
   `).join('');
 
   const total = cart.reduce((s, c) => s + (c.price || 0), 0);
-  if (totalEl) totalEl.textContent = total.toFixed(2) + ' €';
+  const discountEl = document.getElementById('promoDiscount');
+  const statusEl = document.getElementById('promoStatus');
+
+  if (appliedPromo && discountEl) {
+    const discount = total * (appliedPromo.percent / 100);
+    const finalTotal = total - discount;
+    discountEl.style.display = 'block';
+    discountEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:0.78rem;color:var(--text-muted);">Sous-total</span>
+        <span style="font-size:0.82rem;color:var(--text-muted);text-decoration:line-through;">${total.toFixed(2)} €</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.78rem;color:#4ade80;font-weight:600;">Réduction (${appliedPromo.percent}%)</span>
+        <span style="font-size:0.82rem;color:#4ade80;font-weight:600;">-${discount.toFixed(2)} €</span>
+      </div>`;
+    if (totalEl) totalEl.textContent = finalTotal.toFixed(2) + ' €';
+  } else {
+    if (discountEl) discountEl.style.display = 'none';
+    if (totalEl) totalEl.textContent = total.toFixed(2) + ' €';
+  }
+}
+
+function getPromoCodes() {
+  try { return JSON.parse(localStorage.getItem('holofoil_promo_codes') || '[]'); } catch(e) { return []; }
+}
+
+function applyPromoCode() {
+  const input = document.getElementById('promoCodeInput');
+  const status = document.getElementById('promoStatus');
+  if (!input || !status) return;
+  const code = input.value.trim().toUpperCase();
+  if (!code) { status.innerHTML = ''; return; }
+
+  const codes = getPromoCodes();
+  const match = codes.find(c => c.code.toUpperCase() === code && c.active !== false);
+
+  if (match) {
+    appliedPromo = { code: match.code, percent: match.percent };
+    status.innerHTML = `<span style="font-size:0.75rem;color:#4ade80;font-weight:600;">✓ Code "${match.code}" appliqué — ${match.percent}% de réduction</span>`;
+    input.style.borderColor = 'rgba(74,222,128,0.4)';
+  } else {
+    appliedPromo = null;
+    status.innerHTML = `<span style="font-size:0.75rem;color:#ef4444;">✕ Code invalide ou expiré</span>`;
+    input.style.borderColor = 'rgba(239,68,68,0.4)';
+  }
+  renderCartItems();
+}
+
+function removePromoCode() {
+  appliedPromo = null;
+  const input = document.getElementById('promoCodeInput');
+  const status = document.getElementById('promoStatus');
+  if (input) { input.value = ''; input.style.borderColor = 'rgba(255,255,255,0.08)'; }
+  if (status) status.innerHTML = '';
+  renderCartItems();
 }
 
 function initCartSidebar() {

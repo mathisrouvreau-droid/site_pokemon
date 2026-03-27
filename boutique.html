@@ -88,13 +88,13 @@
             <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:8px;">Toutes nos cartes Pokémon, vérifiées et gradées.</p>
           </div>
           <div class="sub-filter-bar" id="cardsFilterBar">
-            <select class="filter-select" id="cardsSetFilter"><option value="all">Tous les sets</option></select>
-            <select class="filter-select" id="cardsOriginFilter">
-              <option value="all">Toutes provenances</option>
-              <option value="FR">🇫🇷 Française</option>
-              <option value="JA">🇯🇵 Japonaise</option>
-              <option value="CN">🇨🇳 Chinoise</option>
+            <select class="filter-select" id="cardsSetLangFilter">
+              <option value="all">Toutes les langues</option>
+              <option value="fr">🇫🇷 Française</option>
+              <option value="ja">🇯🇵 Japonaise</option>
+              <option value="zh">🇨🇳 Chinoise</option>
             </select>
+            <select class="filter-select" id="cardsSetFilter"><option value="all">Tous les sets</option></select>
             <select class="filter-select" id="cardsRarityFilter"><option value="all">Toutes raretés</option></select>
             <select class="filter-select" id="cardsConditionFilter">
               <option value="all">Tous états</option>
@@ -141,13 +141,13 @@
           </div>
 
           <div class="sub-filter-bar" id="sealedFilterBar">
-            <select class="filter-select" id="sealedSetFilter"><option value="all">Tous les sets</option></select>
-            <select class="filter-select" id="sealedOriginFilter">
-              <option value="all">Toutes provenances</option>
-              <option value="FR">🇫🇷 Française</option>
-              <option value="JA">🇯🇵 Japonaise</option>
-              <option value="CN">🇨🇳 Chinoise</option>
+            <select class="filter-select" id="sealedSetLangFilter">
+              <option value="all">Toutes les langues</option>
+              <option value="fr">🇫🇷 Française</option>
+              <option value="ja">🇯🇵 Japonaise</option>
+              <option value="zh">🇨🇳 Chinoise</option>
             </select>
+            <select class="filter-select" id="sealedSetFilter"><option value="all">Tous les sets</option></select>
             <select class="filter-select" id="sealedSortFilter">
               <option value="recent">Plus récents</option>
               <option value="price-asc">Prix croissant</option>
@@ -202,32 +202,49 @@
 
         function buildOptions() {
           dropdown.innerHTML = '';
-          Array.from(sel.options).forEach(opt => {
-            const item = document.createElement('div');
-            item.className = 'custom-select-option' + (opt.value === sel.value ? ' selected' : '');
-            item.dataset.value = opt.value;
-            item.textContent = opt.textContent;
-            item.addEventListener('click', (e) => {
-              e.stopPropagation();
-              sel.value = opt.value;
-              sel.dispatchEvent(new Event('change'));
-              trigger.textContent = opt.textContent;
-              dropdown.querySelectorAll('.custom-select-option').forEach(o => o.classList.remove('selected'));
-              item.classList.add('selected');
-              wrapper.classList.remove('open');
-            });
-            dropdown.appendChild(item);
+          const children = sel.children;
+          for (const child of children) {
+            if (child.tagName === 'OPTGROUP') {
+              // En-tête de groupe
+              const groupLabel = document.createElement('div');
+              groupLabel.className = 'custom-select-group-label';
+              groupLabel.textContent = child.label;
+              dropdown.appendChild(groupLabel);
+              // Options du groupe
+              for (const opt of child.children) {
+                dropdown.appendChild(makeOptionItem(opt));
+              }
+            } else if (child.tagName === 'OPTION') {
+              dropdown.appendChild(makeOptionItem(child));
+            }
+          }
+        }
+
+        function makeOptionItem(opt) {
+          const item = document.createElement('div');
+          item.className = 'custom-select-option' + (opt.value === sel.value ? ' selected' : '');
+          item.dataset.value = opt.value;
+          item.textContent = opt.textContent;
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event('change'));
+            trigger.textContent = opt.textContent;
+            dropdown.querySelectorAll('.custom-select-option').forEach(o => o.classList.remove('selected'));
+            item.classList.add('selected');
+            wrapper.classList.remove('open');
           });
+          return item;
         }
 
         buildOptions();
 
-        // Watch for dynamically added options
+        // Watch for dynamically added options (subtree pour les optgroups)
         const observer = new MutationObserver(() => {
           buildOptions();
           trigger.textContent = sel.options[sel.selectedIndex]?.textContent || '';
         });
-        observer.observe(sel, { childList: true });
+        observer.observe(sel, { childList: true, subtree: true });
 
         trigger.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -250,40 +267,305 @@
       });
     }
 
+    // ─── SETS PAR LANGUE (rempli par buildFilters) ───
+    // Chaque entrée : { name: "nom original", id: "ID" }
+    const setsByLang = { fr: [], ja: [], zh: [] };
+
+    // TCG Pocket set IDs à exclure
+    const TCGP_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'A3b', 'A4', 'A4a', 'B1', 'B1a', 'B2'];
+
+    // ─── TRADUCTIONS JAPONAIS → ANGLAIS ───
+    const JA_SET_FR = {
+      // ── Classic ──
+      '拡張パック': 'Expansion Pack',
+      'ポケモンジャングル': 'Jungle',
+      '化石の秘密': 'Fossil',
+      'ロケット団': 'Team Rocket',
+      'リーダーズスタジアム': 'Gym Heroes',
+      '闇からの挑戦': 'Gym Challenge',
+      // ── Neo ──
+      '金、銀、新世界へ...': 'Neo Genesis',
+      '遺跡をこえて...': 'Neo Discovery',
+      'めざめる伝説': 'Neo Revelation',
+      '闇、そして光へ...': 'Neo Destiny',
+      'ポケモンカード★VS': 'Pokémon Card VS',
+      'ポケモンカード★web': 'Pokémon Card Web',
+      // ── e-Card ──
+      '基本拡張パック': 'Base Expansion Pack',
+      '地図にない町': 'The Town on No Map',
+      '海からの風': 'Wind from the Sea',
+      '裂けた大地': 'Split Earth',
+      '神秘なる山': 'Mysterious Mountains',
+      // ── ADV ──
+      '砂漠のきせき': 'Sandstorm',
+      '天空の覇者': 'Ruler of the Heavens',
+      '強化拡張パックex1マグマVSアクア ふたつの野望': 'Magma VS Aqua: Two Ambitions',
+      'とかれた封印': 'Undone Seal',
+      // ── PCG ──
+      '伝説の飛翔': 'Flight of Legends',
+      '蒼空の激突': 'Clash of the Blue Sky',
+      'ロケット団の逆襲': 'Team Rocket Returns',
+      '金の空、銀の海': 'Golden Sky, Silvery Ocean',
+      'まぼろしの森': 'Mirage Forest',
+      'ホロンの研究塔': 'Holon Research Tower',
+      'ホロンの幻影': 'Holon Phantom',
+      'きせきの結晶': 'Miracle Crystal',
+      'さいはての攻防': 'Offense and Defense of the Furthest Ends',
+      'ワールドチャンピオンズパック': 'World Champions Pack',
+      // ── HGSS ──
+      'ソウルシルバーコレクション': 'SoulSilver Collection',
+      'ハートゴールドコレクション': 'HeartGold Collection',
+      'よみがえる伝説': 'Reviving Legends',
+      '強化パック ロストリンク': 'Lost Link',
+      '頂上大激突': 'Clash at the Summit',
+      // ── XY ──
+      'コレクションX': 'Collection X',
+      'コレクションY': 'Collection Y',
+      'ワイルドブレイズ': 'Wild Blaze',
+      'ライジングフィスト': 'Rising Fist',
+      'ファントムゲート': 'Phantom Gate',
+      'タイダルストーム': 'Tidal Storm',
+      'ガイアボルケーノ': 'Gaia Volcano',
+      'マグマ団VSアクア団 ダブルクライシス': 'Magma VS Aqua Double Crisis',
+      'エメラルドブレイク': 'Emerald Break',
+      'バンデットリング': 'Bandit Ring',
+      '伝説キラコレクション': 'Legendary Shine Collection',
+      '赤い閃光': 'Red Flash',
+      '青い衝撃': 'Blue Shock',
+      '破天の怒り': 'Rage of the Broken Heavens',
+      'ポケキュンコレクション': 'Poké Kyun Collection',
+      'めざめる超王': 'Awakening Psychic King',
+      'プレミアムチャンピオンパック EX×M×BREAK': 'Premium Champion Pack EX×M×BREAK',
+      '冷酷の反逆者': 'Cruel Traitor',
+      'ポケットモンスターカードゲーム 拡張パック 20th Anniversary': 'Expansion Pack 20th Anniversary',
+      // ── Sun & Moon ──
+      'ピカチュウと新しい仲間たち': 'Pikachu & New Friends',
+      'コレクションサン': 'Collection Sun',
+      'コレクションムーン': 'Collection Moon',
+      'サン＆ムーン': 'Sun & Moon',
+      'キミを待つ島々': 'Islands Await You',
+      'アローラの月光': 'Alolan Moonlight',
+      '新たなる試練の向こう': 'Beyond a New Trial',
+      '光を喰らう闇': 'Darkness that Consumes Light',
+      '闘う虹を見たか': 'To Have Seen the Battle Rainbow',
+      'ひかる伝説': 'Shining Legends',
+      '超次元の暴獣': 'Ultra Beast',
+      '覚醒の勇者': 'Awakened Heroes',
+      'GXバトルブースト': 'GX Battle Boost',
+      'ウルトラムーン': 'Ultra Moon',
+      'ウルトラサン': 'Ultra Sun',
+      'ウルトラフォース': 'Ultra Force',
+      '禁断の光': 'Forbidden Light',
+      'ドラゴンストーム': 'Dragon Storm',
+      'チャンピオンロード': 'Champion Road',
+      '裂空のカリスマ': 'Sky-Splitting Charisma',
+      '迅雷スパーク': 'Thunderclap Spark',
+      'フェアリーライズ': 'Fairy Rise',
+      '超爆インパクト': 'Super-Burst Impact',
+      'GXウルトラシャイニ': 'GX Ultra Shiny',
+      'ダークオーダー': 'Dark Order',
+      'タッグボルト': 'Tag Bolt',
+      'ナイトユニゾン': 'Night Unison',
+      'フルメタルウォール': 'Full Metal Wall',
+      'ダブルブレイズ': 'Double Blaze',
+      'ジージーエンド': 'GG End',
+      'スカイレジェンド': 'Sky Legend',
+      '名探偵ピカチュウ': 'Detective Pikachu',
+      'ミラクルツイン': 'Miracle Twin',
+      'リミックスバウト': 'Remix Bout',
+      'ドリームリーグ': 'Dream League',
+      'オルタージェネシス': 'Alter Genesis',
+      'TAG TEAM GX タッグオールスターズ': 'TAG TEAM GX Tag All Stars',
+      // ── Sword & Shield ──
+      'シールド': 'Shield',
+      'ソード': 'Sword',
+      'VMAXライジング': 'VMAX Rising',
+      '反逆クラッシュ': 'Rebel Clash',
+      'ムゲンゾーン': 'Infinity Zone',
+      '伝説の鼓動': 'Legendary Heartbeat',
+      '仰天のボルテッカー': 'Amazing Volt Tackle',
+      'シャイニースターV': 'Shiny Star V',
+      '一撃マスター': 'Single Strike Master',
+      '連撃マスター': 'Rapid Strike Master',
+      '双璧のファイター': 'Matchless Fighters',
+      '漆黒のガイスト': 'Jet-Black Geist',
+      '白銀のランス': 'Silver Lance',
+      'イーブイヒーローズ': 'Eevee Heroes',
+      '蒼空ストリーム': 'Blue Sky Stream',
+      '摩天パーフェクト': 'Skyscraping Perfect',
+      'フュージョンアーツ': 'Fusion Arts',
+      '25th アニバーサリーコレクション': '25th Anniversary Collection',
+      'VMAXクライマックス': 'VMAX Climax',
+      'スターバース': 'Star Birth',
+      'バトルリージョン': 'Battle Region',
+      'タイムゲイザー': 'Time Gazer',
+      'スペースジャグラー': 'Space Juggler',
+      'ダークファンタズマ': 'Dark Phantasma',
+      'Pokémon GO': 'Pokémon GO',
+      'トリプレットビート': 'Triplet Beat',
+      '白熱のアルカナ': 'Incandescent Arcana',
+      'パラダイムトリガー': 'Paradigm Trigger',
+      'VSTARユニバース': 'VSTAR Universe',
+      // ── Scarlet & Violet ──
+      'スカーレットex': 'Scarlet ex',
+      'バイオレットex': 'Violet ex',
+      'クレイバースト': 'Clay Burst',
+      'スノーハザード': 'Snow Hazard',
+      'ポケモンカード151': 'Pokémon Card 151',
+      '黒炎の支配者': 'Ruler of the Black Flame',
+      'レイジングサーフ': 'Raging Surf',
+      '古代の咆哮': 'Ancient Roar',
+      '未来の一閃': 'Future Flash',
+      'ワイルドフォース': 'Wild Force',
+      'サイバージャッジ': 'Cyber Judge',
+      'クリムゾンヘイズ': 'Crimson Haze',
+      '変幻の仮面': 'Mask of Change',
+      'ナイトワンダラー': 'Night Wanderer',
+      'ステラミラクル': 'Stellar Miracle',
+      '楽園ドラゴーナ': 'Paradise Dragona',
+      '超電ブレイカー': 'Super Electric Breaker',
+      'テラスタルフェスex': 'Terastal Fest ex',
+      'バトルパートナーズ': 'Battle Partners',
+      '熱風のアリーナ': 'Hot Wind Arena',
+      'ロケット団の栄光': 'Team Rocket\'s Glory',
+      'ホワイトフレア': 'White Flare',
+      'デッキビルドBOX ステラミラクル': 'Deck Build Box Stellar Miracle',
+      'スターターセット テラスタイプ：ステラ ソウブレイズex': 'Starter Terastal: Stellar Ceruledge ex',
+      'スターターセット テラスタイプ：ステラ ニンフィアex': 'Starter Terastal: Stellar Sylveon ex',
+    };
+
+    // ─── TRADUCTIONS CHINOIS → ANGLAIS ───
+    const ZH_SET_FR = {
+      // ── Sword & Shield ──
+      '無極力量 SET B': 'Infinity Power SET B',
+      '無極力量': 'Infinity Power',
+      '無極力量 SET A': 'Infinity Power SET A',
+      '劍&盾 SET B': 'Sword & Shield SET B',
+      '劍&盾': 'Sword & Shield',
+      '劍&盾 SET A': 'Sword & Shield SET A',
+      '驚天伏特攻擊': 'Amazing Volt Tackle',
+      '閃色明星V': 'Shiny Star V',
+      '一撃大師': 'Single Strike Master',
+      '連撃大師': 'Rapid Strike Master',
+      '雙璧戰士': 'Matchless Fighters',
+      '漆黑幽魂': 'Jet-Black Geist',
+      '銀白戰槍': 'Silver Lance',
+      '伊布英雄': 'Eevee Heroes',
+      '蒼空烈流': 'Blue Sky Stream',
+      '摩天巔峰': 'Skyscraping Perfect',
+      '匯流藝術': 'Fusion Arts',
+      '25週年收藏款': '25th Anniversary Collection',
+      'VMAX絕群壓軸': 'VMAX Climax',
+      '星星誕生': 'Star Birth',
+      '對戰地區': 'Battle Region',
+      '時間觀察者': 'Time Gazer',
+      '空間魔術師': 'Space Juggler',
+      '黑暗亡靈': 'Dark Phantasma',
+      'Pokémon GO': 'Pokémon GO',
+      '三連音爆': 'Triplet Beat',
+      '白熱奧祕': 'Incandescent Arcana',
+      '思維激盪': 'Paradigm Trigger',
+      '天地萬物VSTAR': 'VSTAR Universe',
+      // ── Scarlet & Violet ──
+      '朱ex': 'Scarlet ex',
+      '紫ex': 'Violet ex',
+      '碟旋暴擊': 'Clay Burst',
+      '冰雪險境': 'Snow Hazard',
+      '寶可夢卡牌151': 'Pokémon Card 151',
+      '黯焰支配者': 'Ruler of the Black Flame',
+      '激狂駭浪': 'Raging Surf',
+      '古代咆哮': 'Ancient Roar',
+      '未來閃光': 'Future Flash',
+      '閃色寶藏ex': 'Shiny Treasure ex',
+      '狂野之力': 'Wild Force',
+      '異度審判': 'Cyber Judge',
+      '緋紅薄霧': 'Crimson Haze',
+      '變幻假面': 'Mask of Change',
+      '黑夜漫遊者': 'Night Wanderer',
+      '星晶奇跡': 'Stellar Miracle',
+      '樂園騰龍': 'Paradise Dragona',
+      '超電突圍': 'Super Electric Breaker',
+      '太晶慶典ex': 'Terastal Fest ex',
+      '對戰搭檔': 'Battle Partners',
+      '熱風競技場': 'Hot Wind Arena',
+      '火箭隊的榮耀': 'Team Rocket\'s Glory',
+      '特典卡 朱&紫': 'Scarlet & Violet Promos',
+      // ── Special Products ──
+      '骨紋巨聲鱷ex': 'Skeledirge ex',
+      '起始組合ex 潤水鴨&謎擬Ｑ ex': 'Starter ex Quaquaval & Mimikyu ex',
+      '頂級訓練家收藏箱ex': 'Top Trainer Box ex',
+      'ex特別組合': 'Special ex Combo',
+      '未來密勒頓ex': 'Miraidon ex',
+      'ex初階牌組': 'Starter Deck ex',
+      '起始組合ex 呆火鱷&電龍 ex': 'Starter ex Fuecoco & Ampharos ex',
+      '皮卡丘特別組合': 'Special Pikachu Combo',
+      '超夢ex': 'Mewtwo ex',
+      '起始組合ex 新葉喵&路卡利歐 ex': 'Starter ex Sprigatito & Lucario ex',
+      '起始組合VSTAR 達克萊伊': 'Starter VSTAR Darkrai',
+      '起始組合VSTAR 路卡利歐': 'Starter VSTAR Lucario',
+      '噴火龍': 'Charizard',
+      '進化': 'Evolution',
+      '超夢': 'Mewtwo',
+      '頂級訓練家收藏箱 VSTAR': 'Top Trainer Box VSTAR',
+      '寶可夢卡牌家庭組合': 'Pokémon Card Family Combo',
+      '初階牌組100': 'Starter Deck 100',
+      '搭檔': 'Partner',
+      '挑戰': 'Challenge',
+      'VSTAR特別組合': 'Special VSTAR Combo',
+      'VSTAR&VMAX 高級牌組 捷拉奧拉': 'Premium Deck VSTAR & VMAX Zeraora',
+      '強大': 'Powerful',
+      '藏瑪然特VS無極汰那': 'Zamazenta VS Eternatus',
+      'VSTAR&VMAX 高級牌組 代歐奇希斯': 'Premium Deck VSTAR & VMAX Deoxys',
+      '初階牌組100 特別版': 'Starter Deck 100 Special Edition',
+      '皮卡丘': 'Pikachu',
+    };
+
     // ─── BUILD DYNAMIC FILTERS ───
     async function buildFilters() {
-      // Fetch ALL sets from TCGdex API
-      const apiSets = await TCGdex.getSets();
-      const allSets = [];
+      // Fetch sets depuis les 3 APIs en parallèle
+      const [frSets, jaSets, zhSets] = await Promise.all([
+        TCGdex.getSets(),
+        fetchSetsForLang('ja'),
+        fetchSetsForLang('zh-tw')
+      ]);
 
-      // TCG Pocket set IDs to exclude
-      const TCGP_IDS = ['P-A', 'A1', 'A1a', 'A2', 'A2a', 'A2b', 'A3', 'A3a', 'B1', 'B1a', 'B2'];
-
-      if (apiSets && apiSets.length) {
-        apiSets.reverse().forEach(s => {
-          // Exclude TCG Pocket sets
-          if (s.name && !TCGP_IDS.includes(s.id)) allSets.push(s.name);
+      // Sets internationaux (FR)
+      if (frSets && frSets.length) {
+        frSets.reverse().forEach(s => {
+          if (s.name && !TCGP_IDS.includes(s.id)) setsByLang.fr.push(s.name);
         });
       }
 
-      // Also add any custom sets from admin listings not in API
+      // Sets japonais
+      if (jaSets && jaSets.length) {
+        jaSets.reverse().forEach(s => {
+          if (s.name && !TCGP_IDS.includes(s.id)) setsByLang.ja.push(s.name);
+        });
+      }
+
+      // Sets chinois
+      if (zhSets && zhSets.length) {
+        zhSets.reverse().forEach(s => {
+          if (s.name && !TCGP_IDS.includes(s.id)) setsByLang.zh.push(s.name);
+        });
+      }
+
+      // Dédupliquer (les APIs JA et ZH-TW ont parfois des doublons)
+      setsByLang.ja = [...new Set(setsByLang.ja)];
+      setsByLang.zh = [...new Set(setsByLang.zh)];
+
+      // Ajouter les sets custom des listings admin
       const listings = getAdminListings();
       const listingSets = [...new Set(listings.map(l => l.set).filter(Boolean))];
       listingSets.forEach(s => {
-        if (!allSets.includes(s)) allSets.unshift(s);
+        if (!setsByLang.fr.includes(s) && !setsByLang.ja.includes(s) && !setsByLang.zh.includes(s)) {
+          setsByLang.fr.unshift(s);
+        }
       });
 
-      // Populate all set filter dropdowns
-      ['cardsSetFilter', 'sealedSetFilter'].forEach(id => {
-        const sel = document.getElementById(id);
-        if (!sel) return;
-        allSets.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s;
-          opt.textContent = s;
-          sel.appendChild(opt);
-        });
-      });
+      // Peupler les dropdowns de sets (toutes langues par défaut)
+      updateSetDropdown('cardsSetFilter', 'cardsSetLangFilter');
+      updateSetDropdown('sealedSetFilter', 'sealedSetLangFilter');
 
       // Rarity filter — from admin listings + common rarities
       const defaultRarities = [
@@ -305,13 +587,101 @@
       }
     }
 
+    // Fetch sets depuis une autre langue TCGdex
+    async function fetchSetsForLang(lang) {
+      try {
+        const res = await fetch(`https://api.tcgdex.net/v2/${lang}/sets`);
+        if (!res.ok) throw new Error(`API ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        console.error(`Erreur fetch sets ${lang}:`, err);
+        return [];
+      }
+    }
+
+    // Retourne le nom traduit en français pour un set JA ou ZH
+    function translateSetName(name, group) {
+      if (group === 'ja') return JA_SET_FR[name] || name;
+      if (group === 'zh') return ZH_SET_FR[name] || name;
+      return name;
+    }
+
+    // Met à jour le dropdown de sets selon la langue sélectionnée
+    function updateSetDropdown(setFilterId, langFilterId) {
+      const sel = document.getElementById(setFilterId);
+      const langVal = document.getElementById(langFilterId)?.value || 'all';
+      if (!sel) return;
+
+      // Garder la valeur courante si possible
+      const currentVal = sel.value;
+
+      // Vider les options sauf "Tous les sets"
+      sel.innerHTML = '<option value="all">Tous les sets</option>';
+
+      let setsToShow = [];
+      if (langVal === 'all') {
+        setsToShow = [
+          ...setsByLang.fr.map(s => ({ name: s, group: 'fr' })),
+          ...setsByLang.ja.map(s => ({ name: s, group: 'ja' })),
+          ...setsByLang.zh.map(s => ({ name: s, group: 'zh' }))
+        ];
+      } else {
+        setsToShow = (setsByLang[langVal] || []).map(s => ({ name: s, group: langVal }));
+      }
+
+      // Ajouter les optgroups si toutes langues
+      if (langVal === 'all') {
+        const groups = [
+          { key: 'fr', label: '🇫🇷 Française' },
+          { key: 'ja', label: '🇯🇵 Japonaise' },
+          { key: 'zh', label: '🇨🇳 Chinoise' }
+        ];
+        groups.forEach(g => {
+          const groupSets = setsToShow.filter(s => s.group === g.key);
+          if (groupSets.length === 0) return;
+          const optgroup = document.createElement('optgroup');
+          optgroup.label = g.label;
+          groupSets.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.name;
+            opt.textContent = translateSetName(s.name, s.group);
+            optgroup.appendChild(opt);
+          });
+          sel.appendChild(optgroup);
+        });
+      } else {
+        setsToShow.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.name;
+          opt.textContent = translateSetName(s.name, s.group);
+          sel.appendChild(opt);
+        });
+      }
+
+      // Restaurer la sélection si elle existe encore
+      const exists = Array.from(sel.options).some(o => o.value === currentVal);
+      sel.value = exists ? currentVal : 'all';
+    }
+
     function attachFilterListeners() {
+      // Langue du set → met à jour le dropdown de sets
+      document.getElementById('cardsSetLangFilter')?.addEventListener('change', () => {
+        updateSetDropdown('cardsSetFilter', 'cardsSetLangFilter');
+        currentPage = 1;
+        loadCards();
+      });
+      document.getElementById('sealedSetLangFilter')?.addEventListener('change', () => {
+        updateSetDropdown('sealedSetFilter', 'sealedSetLangFilter');
+        currentPage = 1;
+        loadSealed();
+      });
+
       // Cards view
-      ['cardsSetFilter', 'cardsOriginFilter', 'cardsRarityFilter', 'cardsConditionFilter', 'cardsSortFilter'].forEach(id => {
+      ['cardsSetFilter', 'cardsRarityFilter', 'cardsConditionFilter', 'cardsSortFilter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadCards(); });
       });
       // Sealed view
-      ['sealedSetFilter', 'sealedOriginFilter', 'sealedSortFilter'].forEach(id => {
+      ['sealedSetFilter', 'sealedSortFilter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', () => { currentPage = 1; loadSealed(); });
       });
     }
@@ -367,10 +737,18 @@
       return listings;
     }
 
-    function applyOriginFilter(listings, filterId) {
-      const val = document.getElementById(filterId)?.value || 'all';
+    // Mapping langue du set → origins correspondantes
+    const LANG_TO_ORIGINS = {
+      'fr': ['FR', 'EN', 'DE', 'ES', 'IT', 'PT', 'KO'],
+      'ja': ['JA'],
+      'zh': ['CN', 'TW']
+    };
+
+    function applyLangFilter(listings, langFilterId) {
+      const val = document.getElementById(langFilterId)?.value || 'all';
       if (val === 'all') return listings;
-      return listings.filter(l => (l.origin || 'FR') === val);
+      const origins = LANG_TO_ORIGINS[val] || [];
+      return listings.filter(l => origins.includes(l.origin || 'FR'));
     }
 
     // ─── ALL VIEW ───
@@ -393,10 +771,10 @@
       const grid = document.getElementById('cardsGrid');
       let listings = applySearch(getAdminListings()).filter(l => (l.type || 'Carte') === 'Carte');
 
+      listings = applyLangFilter(listings, 'cardsSetLangFilter');
+
       const setVal = document.getElementById('cardsSetFilter').value;
       if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
-
-      listings = applyOriginFilter(listings, 'cardsOriginFilter');
 
       const rarVal = document.getElementById('cardsRarityFilter').value;
       if (rarVal !== 'all') listings = listings.filter(l => l.rarity === rarVal);
@@ -420,7 +798,7 @@
       const setVal = document.getElementById('sealedSetFilter').value;
       if (setVal !== 'all') listings = listings.filter(l => l.set === setVal);
 
-      listings = applyOriginFilter(listings, 'sealedOriginFilter');
+      listings = applyLangFilter(listings, 'sealedSetLangFilter');
       listings = applySorting(listings, 'sealedSortFilter');
       paginate(listings, grid, 'sealedPagination', loadSealed);
     }

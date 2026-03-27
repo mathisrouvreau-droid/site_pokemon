@@ -387,7 +387,7 @@ function openListingDetail(index) {
             </div>
             <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
               <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Langue</div>
-              <div style="font-size:0.85rem;font-weight:600;">${{'FR':'Française','EN':'Anglaise','JA':'Japonaise','KO':'Coréenne','DE':'Allemande','ES':'Espagnole','IT':'Italienne','PT':'Portugaise','CN':'Chinoise','TW':'Taïwanaise'}[listing.origin] || 'Française'}</div>
+              <div style="font-size:0.85rem;font-weight:600;">${{'FR':'🇫🇷 Française','EN':'🇬🇧 Anglaise','JA':'🇯🇵 Japonaise','KO':'🇰🇷 Coréenne','DE':'🇩🇪 Allemande','ES':'🇪🇸 Espagnole','IT':'🇮🇹 Italienne','PT':'🇧🇷 Portugaise','CN':'🇨🇳 Chinoise','TW':'🇹🇼 Taïwanaise'}[listing.origin] || '🇫🇷 Française'}</div>
             </div>
             ${type === 'Carte' ? `
             <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">

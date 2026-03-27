@@ -349,6 +349,24 @@
   box-shadow: 0 0 6px var(--holo-1);
 }
 
+/* Group labels dans le custom select */
+.custom-select-group-label {
+  padding: 8px 16px 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  opacity: 0.7;
+  pointer-events: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  margin-top: 4px;
+}
+.custom-select-group-label:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
 /* All cards grid */
 .allcards-grid {
   display: grid;
@@ -387,5 +405,23 @@
 }
 @media (max-width: 480px) {
   .bestsellers-grid,
-  .allcards-grid { grid-template-columns: 1fr; }
+  .allcards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .boutique-hero { padding: 40px 0 24px; }
+  .boutique-hero h1 { font-size: 1.8rem; }
+  .boutique-hero p { font-size: 0.82rem; }
+  .category-tabs { padding: 8px 10px !important; gap: 6px; }
+  .cat-tab { padding: 8px 12px; font-size: 0.75rem; }
+  .cat-tab-search { flex: 1 1 100%; order: -1; }
+  .cat-tab-search input { font-size: 0.8rem; }
+  .sub-filter-bar { gap: 6px; margin-bottom: 16px; }
+  .custom-select-trigger { font-size: 0.72rem; padding: 7px 12px; padding-right: 26px; }
+  .custom-select-trigger::after { right: 8px; border-left-width: 4px; border-right-width: 4px; border-top-width: 4px; }
+  .custom-select-dropdown { min-width: 170px; max-height: 260px; }
+  .custom-select-option { padding: 8px 12px; font-size: 0.78rem; }
+  .glass-panel { padding: 18px 14px; }
+  .sealed-cats { gap: 4px; }
+  .sealed-cat-btn { padding: 7px 12px; font-size: 0.72rem; }
+  .section-header h2 { font-size: 1.3rem; }
+  .allcards-section { padding: 30px 0; }
+  .nouveautes-section { padding: 30px 0; }
 }

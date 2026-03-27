@@ -69,23 +69,23 @@
   position: absolute;
   inset: 0;
 }
-/* Scattered cards mosaic — full card visible */
+/* Scattered cards mosaic — full card visible, no gaps */
 .cards-mosaic {
   position: absolute;
-  inset: -60px;
+  inset: -80px;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   grid-auto-rows: 1fr;
-  gap: 14px;
-  padding: 10px;
-  transform: rotate(-6deg) scale(1.15);
-  opacity: 0.9;
+  gap: 3px;
+  padding: 0;
+  transform: rotate(-6deg) scale(1.25);
+  opacity: 0.92;
 }
 .mosaic-card {
-  border-radius: 10px;
+  border-radius: 6px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
   transition: transform 0.6s ease;
   aspect-ratio: 63/88; /* Standard card ratio */
 }
@@ -101,6 +101,33 @@
   object-fit: cover !important;
   border-radius: inherit;
   display: block;
+}
+/* Reflet holographique — piloté par JS */
+.mosaic-card .mc-inner::after {
+  content: '';
+  position: absolute;
+  top: -80%;
+  left: -80%;
+  width: 260%;
+  height: 260%;
+  border-radius: inherit;
+  background: linear-gradient(
+    var(--sweep-angle, 105deg),
+    transparent 40%,
+    rgba(255,255,255,0.13) 45%,
+    rgba(77,201,246,0.09) 48%,
+    rgba(168,85,247,0.09) 50%,
+    rgba(249,115,22,0.07) 52%,
+    rgba(255,255,255,0.13) 55%,
+    transparent 60%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(var(--sweep-x, -40%), var(--sweep-y, -20%));
+  transition: transform 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s ease;
+}
+.mosaic-card .mc-inner.holo-active::after {
+  opacity: 1;
 }
 .mosaic-card:nth-child(odd) { transform: rotate(1deg); }
 .mosaic-card:nth-child(even) { transform: rotate(-1.5deg); }
@@ -320,6 +347,20 @@
   .has-announcement .page-content { padding-top: 34px; }
 }
 @media (max-width: 480px) {
+  .hero-banner { min-height: 280px; max-height: 400px; }
+  .cards-mosaic { grid-template-columns: repeat(4, 1fr); gap: 2px; }
   .featured-grid { grid-template-columns: 1fr; }
   .trust-bar-grid { grid-template-columns: 1fr; }
+  .trust-bar-item { padding: 16px; }
+  .trust-bar-item h4 { font-size: 0.9rem; }
+  .trust-bar-item p { font-size: 0.78rem; }
+  .newsletter-card { padding: 28px 16px; }
+  .newsletter-card h2 { font-size: 1.3rem; }
+  .newsletter-card p { font-size: 0.82rem; }
+  .newsletter-input { font-size: 0.85rem; padding: 12px 16px; }
+  .newsletter-submit { padding: 12px 20px; font-size: 0.82rem; }
+  .nouveautes-home-row .poke-card { min-width: 180px; max-width: 180px; }
+  .scroll-row { gap: 12px; }
+  .announcement-bar { font-size: 0.68rem; padding: 7px 10px; }
+  .marquee-item { padding: 14px 24px; font-size: 0.75rem; }
 }

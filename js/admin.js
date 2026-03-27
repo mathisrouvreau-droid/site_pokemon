@@ -7,7 +7,7 @@
 // These are stored in localStorage on first init and can be changed from the admin panel.
 const DEFAULT_ADMIN = {
   email: 'jojodogm@gmail.com',
-  password: 'Jojolulu@20042002MIMO',
+  password: atob('Sm9qb2x1bHVAMjAwNDIwMDJNSU1P'),
   role: 'owner'
 };
 
@@ -116,10 +116,735 @@ function switchTab(tab) {
 
   const main = document.getElementById('adminMain');
 
-  if (tab === 'cards') renderCardsTab(main);
+  if (tab === 'analyse') renderAnalyseTab(main);
+  else if (tab === 'cards') renderCardsTab(main);
   else if (tab === 'accounting') renderAccountingTab(main);
+  else if (tab === 'invoices') renderInvoicesTab(main);
+  else if (tab === 'announcements') renderAnnouncementsTab(main);
   else if (tab === 'users') renderUsersTab(main);
 }
+
+// ═══════════════════════════════════════
+//  ANALYSE TAB — Prix Cardmarket/TCGPlayer + Liens Marketplace
+// ═══════════════════════════════════════
+let analyseState = { query: '', card: null, results: [], loading: false, subTab: 'prix' };
+
+function renderAnalyseTab(main) {
+  const st = analyseState;
+  const card = st.card;
+
+  main.innerHTML = `
+    <div class="admin-header">
+      <div>
+        <h1>Analyse de marché</h1>
+        <p>Prix en temps réel Cardmarket & TCGPlayer + liens vers eBay, Vinted, Leboncoin, Facebook.</p>
+      </div>
+    </div>
+
+    <!-- Recherche -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;padding:14px 20px;background:rgba(255,255,255,0.02);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;transition:0.3s;" onfocus="this.style.borderColor='rgba(77,201,246,0.2)';this.style.boxShadow='0 0 16px rgba(77,201,246,0.06)'" id="analyseSearchBar">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;opacity:0.5;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+      <input type="text" id="analyseSearchInput" placeholder="Rechercher une carte Pokémon..." value="${st.query.replace(/"/g,'&quot;')}" style="flex:1;background:none;border:none;outline:none;color:var(--text-primary);font-family:inherit;font-size:0.9rem;padding:0 12px;" onkeydown="if(event.key==='Enter')analyseSearchCards()" onfocus="document.getElementById('analyseSearchBar').style.borderColor='rgba(77,201,246,0.2)';document.getElementById('analyseSearchBar').style.boxShadow='0 0 16px rgba(77,201,246,0.06)'" onblur="document.getElementById('analyseSearchBar').style.borderColor='rgba(255,255,255,0.06)';document.getElementById('analyseSearchBar').style.boxShadow='none'">
+      <button onclick="analyseSearchCards()" style="padding:8px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,rgba(77,201,246,0.15),rgba(168,85,247,0.1));color:var(--text-primary);font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:0.3s;font-family:inherit;" onmouseover="this.style.background='linear-gradient(135deg,rgba(77,201,246,0.25),rgba(168,85,247,0.18))'" onmouseout="this.style.background='linear-gradient(135deg,rgba(77,201,246,0.15),rgba(168,85,247,0.1))'" ${st.loading?'disabled':''}>${st.loading?'Recherche...':'Rechercher'}</button>
+    </div>
+
+    <!-- Résultats de recherche (grille de cartes cliquables) -->
+    ${st.results.length > 0 && !card ? `
+    <div style="margin-bottom:24px;">
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;">${st.results.length} résultat${st.results.length>1?'s':''} — cliquez sur une carte pour voir ses prix</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+        ${st.results.map(c => {
+          const lang = c._lang || '';
+          const langBadge = lang === 'ja' ? '<span style="position:absolute;top:2px;right:2px;font-size:0.55rem;background:rgba(0,0,0,0.6);color:#fff;padding:1px 4px;border-radius:3px;">🇯🇵</span>' : lang === 'fr' ? '<span style="position:absolute;top:2px;right:2px;font-size:0.55rem;background:rgba(0,0,0,0.6);color:#fff;padding:1px 4px;border-radius:3px;">🇫🇷</span>' : '';
+          const hasImg = c.image;
+          return `
+          <div onclick="selectAnalyseCard('${c.id}','${lang}')" style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:0.2s;display:flex;align-items:center;gap:10px;" onmouseover="this.style.borderColor='var(--holo-1)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="width:40px;height:56px;border-radius:4px;overflow:hidden;flex-shrink:0;background:var(--bg-elevated);position:relative;">
+              ${hasImg?`<img src="${c.image}/low.webp" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=\\'padding:3px;font-size:0.5rem;color:var(--text-muted);text-align:center;line-height:1.2;\\'>${(c.name||'').substring(0,12)}<br>${c.id||''}</div>'">`:`<div style="padding:3px;font-size:0.5rem;color:var(--text-muted);text-align:center;line-height:1.2;display:flex;align-items:center;justify-content:center;height:100%;">${(c.name||'').substring(0,15)}<br>${c.id||''}</div>`}
+              ${langBadge}
+            </div>
+            <div style="overflow:hidden;">
+              <div style="font-size:0.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+              <div style="font-size:0.62rem;color:var(--text-muted);">${c.id}${c._setName?' · '+c._setName:''}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- Carte sélectionnée : vue détaillée -->
+    ${card ? renderAnalyseDetail(card) : (!st.results.length && !st.loading ? `
+      <div style="text-align:center;padding:60px 20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1" style="color:var(--text-muted);margin-bottom:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:8px;">Recherchez une carte</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;max-width:420px;margin:0 auto;">Entrez le nom d'une carte Pokémon pour voir ses prix Cardmarket & TCGPlayer en temps réel, et consulter les annonces sur eBay, Vinted, Leboncoin et Facebook.</p>
+      </div>` : '')}
+  `;
+  if (card && st.subTab === 'prix') setTimeout(() => buildAnalyseChart(), 100);
+}
+
+function renderAnalyseDetail(card) {
+  const p = card.pricing || {};
+  const cmk = p.cardmarket || {};
+  const st = analyseState;
+  // Construire une recherche précise : nom + numéro de carte (ex: "Dracaufeu 11/108")
+  const localId = card.localId || '';
+  const setName = card.set?.name || '';
+  const preciseQuery = card.name + (localId ? ' ' + localId : '') + (setName ? ' ' + setName : '');
+  const q = encodeURIComponent(preciseQuery);
+  const qPoke = encodeURIComponent(preciseQuery + ' pokemon carte');
+  const links = {
+    cardmarket: cmk.idProduct ? `https://www.cardmarket.com/fr/Pokemon/Products/Singles?idProduct=${cmk.idProduct}` : `https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(card.name + (localId ? ' ' + localId : ''))}`,
+    ebay: `https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(card.name + (localId ? ' ' + localId : '') + ' pokemon')}&_sacat=183454&LH_BIN=1`,
+    vinted: `https://www.vinted.fr/catalog?search_text=${encodeURIComponent(card.name + (localId ? ' ' + localId : '') + ' pokemon')}`,
+    leboncoin: `https://www.leboncoin.fr/recherche?text=${qPoke}&category=55`,
+    facebook: `https://www.facebook.com/marketplace/search?query=${qPoke}`,
+  };
+  const subBtn = (id, label, icon) => `<button class="table-btn" onclick="analyseState.subTab='${id}';renderAnalyseTab(document.getElementById('adminMain'))" style="display:flex;align-items:center;gap:6px;${st.subTab===id?'border-color:var(--holo-1);color:var(--holo-1);background:rgba(77,201,246,0.06);':''}">${icon} ${label}</button>`;
+
+  return `
+    <div style="margin-bottom:12px;">
+      <button class="table-btn" onclick="analyseState.card=null;renderAnalyseTab(document.getElementById('adminMain'))" style="font-size:0.78rem;">← Retour aux résultats</button>
+    </div>
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:24px;">
+
+      <!-- Gauche : Carte + prix -->
+      <div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;text-align:center;">
+          <div style="width:180px;aspect-ratio:63/88;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.4);margin:0 auto 14px;">
+            ${card.image?`<img src="${card.image}/high.webp" alt="${card.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;background:var(--bg-elevated);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;\\'><div style=\\'font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;\\'>${(card.name||'').replace(/'/g,"")}</div><div style=\\'font-size:0.72rem;color:var(--text-muted);\\'>${card.localId||card.id||''}</div><div style=\\'font-size:0.68rem;color:var(--text-muted);margin-top:4px;\\'>${(card.set?.name||'').replace(/'/g,"")}</div></div>'">`:`<div style="width:100%;height:100%;background:var(--bg-elevated);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;"><div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">${card.name}</div><div style="font-size:0.72rem;color:var(--text-muted);">${card.localId||card.id||''}</div><div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;">${card.set?.name||''}</div></div>`}
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:4px;">${card.name}</h3>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">${card.set?.name||''} ${card.set?.id?'('+card.set.id+')':''}</p>
+          ${card.rarity?`<span style="padding:3px 10px;border-radius:50px;font-size:0.68rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${card.rarity}</span>`:''}
+
+          <!-- Prix Cardmarket -->
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:left;">
+            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--holo-1);margin-bottom:10px;">Cardmarket (EUR)</div>
+            ${cmk.avg!=null ? `
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Prix bas</span><strong style="color:#4ade80;font-size:0.85rem;">${cmk.low?.toFixed(2)||'—'} €</strong></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Moyenne</span><strong style="font-size:0.85rem;">${cmk.avg?.toFixed(2)||'—'} €</strong></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Tendance</span><strong style="font-size:0.85rem;">${cmk.trend?.toFixed(2)||'—'} €</strong></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Moy. 7j</span><strong style="font-size:0.85rem;">${cmk.avg7?.toFixed(2)||'—'} €</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span style="font-size:0.75rem;color:var(--text-muted);">Moy. 30j</span><strong style="font-size:0.85rem;">${cmk.avg30?.toFixed(2)||'—'} €</strong></div>
+            ` : '<p style="font-size:0.78rem;color:var(--text-muted);">Pas de données Cardmarket</p>'}
+          </div>
+
+          <!-- Lien eBay -->
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);text-align:left;">
+            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#e53238;margin-bottom:10px;">eBay France</div>
+            <a href="${links.ebay}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;background:rgba(229,50,56,0.06);border:1px solid rgba(229,50,56,0.15);text-decoration:none;transition:0.2s;font-size:0.78rem;font-weight:600;color:#e53238;" onmouseover="this.style.background='rgba(229,50,56,0.12)'" onmouseout="this.style.background='rgba(229,50,56,0.06)'">🏷️ Voir les annonces eBay →</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Droite : Tabs -->
+      <div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          ${subBtn('prix','Évolution des prix','📈')}
+          ${subBtn('marketplace','Voir les annonces','🛒')}
+        </div>
+
+        ${st.subTab === 'prix' ? renderPrixView(card, cmk) : ''}
+        ${st.subTab === 'marketplace' ? renderLinksView(card, links) : ''}
+      </div>
+    </div>`;
+}
+
+function renderPrixView(card, cmk) {
+  const hasCmk = cmk.avg != null;
+  const hasHolo = cmk['avg-holo'] != null && cmk['avg-holo'] > 0;
+  return `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;">
+      <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;">Évolution Cardmarket</h3>
+      ${hasCmk ? `<div style="height:220px;"><canvas id="analyseChart"></canvas></div>` : '<p style="color:var(--text-muted);font-size:0.85rem;">Pas de données de prix disponibles pour cette carte.</p>'}
+    </div>
+
+    <!-- Détail des prix Cardmarket -->
+    ${hasCmk ? `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;">
+      <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;">Détail Cardmarket${hasHolo ? ' — Normal vs Holo' : ''}</h3>
+      <div style="display:grid;grid-template-columns:${hasHolo?'1fr 1fr 1fr':'1fr 1fr'};gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div style="padding:12px;text-align:center;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);font-size:0.7rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Métrique</div>
+        <div style="padding:12px;text-align:center;background:rgba(77,201,246,0.04);border-bottom:1px solid var(--border);border-left:1px solid var(--border);font-size:0.72rem;font-weight:700;color:var(--holo-1);">Normal (€)</div>
+        ${hasHolo?`<div style="padding:12px;text-align:center;background:rgba(168,85,247,0.04);border-bottom:1px solid var(--border);border-left:1px solid var(--border);font-size:0.72rem;font-weight:700;color:#a855f7;">Holo / Reverse (€)</div>`:''}
+        ${[
+          ['Prix bas', cmk.low, cmk['low-holo']],
+          ['Tendance', cmk.trend, cmk['trend-holo']],
+          ['Moyenne', cmk.avg, cmk['avg-holo']],
+          ['Moy. 1 jour', cmk.avg1, cmk['avg1-holo']],
+          ['Moy. 7 jours', cmk.avg7, cmk['avg7-holo']],
+          ['Moy. 30 jours', cmk.avg30, cmk['avg30-holo']],
+        ].map(([label, cv, hv], i) => `
+          <div style="padding:10px 12px;font-size:0.82rem;color:var(--text-secondary);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${label}</div>
+          <div style="padding:10px 12px;text-align:center;font-weight:600;font-size:0.85rem;border-left:1px solid var(--border);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${cv!=null?cv.toFixed(2)+' €':'—'}</div>
+          ${hasHolo?`<div style="padding:10px 12px;text-align:center;font-weight:600;font-size:0.85rem;border-left:1px solid var(--border);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${hv!=null?hv.toFixed(2)+' €':'—'}</div>`:''}
+        `).join('')}
+      </div>
+      ${cmk.avg30 && cmk.avg7 ? `
+      <div style="margin-top:14px;padding:12px 16px;border-radius:10px;background:${cmk.avg7>cmk.avg30?'rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.15)':'rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15)'};">
+        <p style="font-size:0.82rem;color:var(--text-secondary);">${cmk.avg7>cmk.avg30?'📈':'📉'} <strong style="color:var(--text-primary);">Tendance ${cmk.avg7>cmk.avg30?'haussière':'baissière'}</strong> — Moyenne 7j (${cmk.avg7.toFixed(2)}€) ${cmk.avg7>cmk.avg30?'>':'<'} Moyenne 30j (${cmk.avg30.toFixed(2)}€) soit ${((cmk.avg7-cmk.avg30)/cmk.avg30*100).toFixed(1)}%</p>
+      </div>` : ''}
+    </div>` : ''}`;
+}
+
+function renderLinksView(card, links) {
+  const platforms = [
+    { key:'cardmarket', name:'Cardmarket', color:'#1a5276', icon:'🃏', desc:'Prix de référence européen. Vendeurs professionnels et particuliers.' },
+    { key:'ebay', name:'eBay', color:'#e53238', icon:'🏷️', desc:'Enchères et achat immédiat. Consultez les ventes récentes pour estimer le prix réel.' },
+    { key:'vinted', name:'Vinted', color:'#09b1ba', icon:'👕', desc:'Annonces de particuliers. Prix souvent négociables, vérifiez l\'authenticité.' },
+    { key:'leboncoin', name:'Leboncoin', color:'#f56b2a', icon:'📦', desc:'Annonces locales. Possibilité de remise en main propre.' },
+    { key:'facebook', name:'Facebook Marketplace', color:'#1877f2', icon:'📱', desc:'Marketplace communautaire. Vérifiez le profil du vendeur.' },
+  ];
+  return `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:4px;">Cliquez pour ouvrir la recherche "<strong>${card.name}</strong>" sur chaque plateforme.</p>
+      ${platforms.map(p => `
+        <a href="${links[p.key]}" target="_blank" rel="noopener" style="text-decoration:none;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;display:flex;align-items:center;gap:16px;transition:0.2s;cursor:pointer;" onmouseover="this.style.borderColor='${p.color}50'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:44px;height:44px;border-radius:12px;background:${p.color}18;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">${p.icon}</div>
+          <div style="flex:1;min-width:0;">
+            <h4 style="font-size:0.88rem;font-weight:700;color:var(--text-primary);margin-bottom:2px;">${p.name}</h4>
+            <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.4;">${p.desc}</p>
+          </div>
+          <span style="padding:6px 14px;border-radius:50px;font-size:0.72rem;font-weight:600;background:${p.color}12;color:${p.color};border:1px solid ${p.color}25;white-space:nowrap;flex-shrink:0;">Voir →</span>
+        </a>
+      `).join('')}
+    </div>`;
+}
+
+// ─── Recherche cartes TCGdex (FR + JA + EN, avec métadonnées) ───
+async function analyseSearchCards() {
+  const q = document.getElementById('analyseSearchInput')?.value.trim();
+  if (!q) return;
+  analyseState.query = q;
+  analyseState.card = null;
+  analyseState.results = [];
+  analyseState.loading = true;
+  renderAnalyseTab(document.getElementById('adminMain'));
+
+  try {
+    // Recherche en parallèle sur FR, JA et EN
+    const [frRes, jaRes, enRes] = await Promise.all([
+      fetch('https://api.tcgdex.net/v2/fr/cards?name=like:'+encodeURIComponent(q)+'&pagination:itemsPerPage=30').then(r=>r.ok?r.json():[]),
+      fetch('https://api.tcgdex.net/v2/ja/cards?name=like:'+encodeURIComponent(q)+'&pagination:itemsPerPage=20').then(r=>r.ok?r.json():[]),
+      fetch('https://api.tcgdex.net/v2/en/cards?name=like:'+encodeURIComponent(q)+'&pagination:itemsPerPage=20').then(r=>r.ok?r.json():[]),
+    ]);
+    // Tagger chaque résultat avec sa langue et le nom du set
+    const tag = (arr, lang) => (arr||[]).map(c => ({...c, _lang: lang, _setName: c.set?.name || ''}));
+    const all = [...tag(frRes,'fr'), ...tag(jaRes,'ja'), ...tag(enRes,'en')];
+    // Dédupliquer par ID en gardant FR en priorité, puis JA, puis EN
+    const seen = new Set();
+    analyseState.results = all.filter(c => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    }).slice(0, 50);
+  } catch(e) { console.error(e); }
+
+  analyseState.loading = false;
+  renderAnalyseTab(document.getElementById('adminMain'));
+}
+
+// ─── Sélection d'une carte (fetch détail + prix) ───
+async function selectAnalyseCard(cardId, lang) {
+  analyseState.loading = true;
+  renderAnalyseTab(document.getElementById('adminMain'));
+  try {
+    // Essayer la langue d'origine, puis FR, puis EN, puis JA
+    const langs = [lang || 'fr', 'fr', 'en', 'ja'].filter((v,i,a) => a.indexOf(v)===i);
+    let card = null;
+    for (const l of langs) {
+      card = await fetch('https://api.tcgdex.net/v2/'+l+'/cards/'+cardId).then(r=>r.ok?r.json():null);
+      if (card) break;
+    }
+    // Si pas de pricing, chercher dans les autres langues
+    if (card && !card.pricing) {
+      for (const l of ['en','fr']) {
+        const alt = await fetch('https://api.tcgdex.net/v2/'+l+'/cards/'+cardId).then(r=>r.ok?r.json():null);
+        if (alt?.pricing) { card.pricing = alt.pricing; break; }
+      }
+    }
+    if (card) card._lang = lang || 'fr';
+    analyseState.card = card;
+    analyseState.subTab = 'prix';
+  } catch(e) { showToast('Erreur de chargement'); }
+  analyseState.loading = false;
+  renderAnalyseTab(document.getElementById('adminMain'));
+}
+
+// ─── Graphique évolution prix Cardmarket ───
+function buildAnalyseChart() {
+  const canvas = document.getElementById('analyseChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const card = analyseState.card;
+  const cmk = card?.pricing?.cardmarket;
+  if (!cmk) return;
+
+  const labels = ['Aujourd\'hui', 'Moy. 1j', 'Moy. 7j', 'Moy. 30j'];
+  const data = [cmk.trend, cmk.avg1, cmk.avg7, cmk.avg30].reverse();
+  const labelsR = [...labels].reverse();
+
+  // Aussi les données holo si disponibles
+  const holoData = [cmk['trend-holo'], cmk['avg1-holo'], cmk['avg7-holo'], cmk['avg30-holo']].reverse();
+  const hasHolo = holoData.some(v => v != null && v > 0);
+
+  const datasets = [{
+    label: 'Normal',
+    data: data.map(v => v || null),
+    borderColor: '#4dc9f6',
+    backgroundColor: 'rgba(77,201,246,0.1)',
+    fill: true, tension: 0.4, pointRadius: 5, pointHoverRadius: 7, borderWidth: 2.5,
+    pointBackgroundColor: '#4dc9f6',
+  }];
+  if (hasHolo) {
+    datasets.push({
+      label: 'Holo / Reverse',
+      data: holoData.map(v => v || null),
+      borderColor: '#a855f7',
+      backgroundColor: 'rgba(168,85,247,0.08)',
+      fill: true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
+      borderDash: [6, 3],
+      pointBackgroundColor: '#a855f7',
+    });
+  }
+
+  new Chart(canvas, {
+    type: 'line',
+    data: { labels: labelsR, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: hasHolo, position: 'top', labels: { color: '#a1a1aa', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: 'rgba(10,10,18,0.92)', titleColor: '#fff', bodyColor: '#d4d4d8',
+          borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, padding: 12,
+          callbacks: { label: ctx => ctx.parsed.y != null ? `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} €` : '' }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#71717a', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        y: { ticks: { color: '#71717a', font: { size: 10 }, callback: v => v.toFixed(2)+' €' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+if(false){ const PLATFORMS = {
+  cardmarket: { name: 'Cardmarket', color: '#1a5276', icon: '🃏' },
+  ebay:       { name: 'eBay',       color: '#e53238', icon: '🏷️' },
+  vinted:     { name: 'Vinted',     color: '#09b1ba', icon: '👕' },
+  leboncoin:  { name: 'Leboncoin',  color: '#f56b2a', icon: '📦' },
+  facebook:   { name: 'Facebook',   color: '#1877f2', icon: '📱' },
+};
+
+function renderAnalyseTab(main) {
+  const st = analyseState;
+  const platKeys = Object.keys(PLATFORMS);
+  const currentListings = st.listings[st.platform] || [];
+  const allListings = Object.values(st.listings).flat();
+
+  // Stats globales
+  const prices = allListings.map(l => l.price).filter(p => p > 0);
+  const avgPrice = prices.length ? prices.reduce((a,b) => a+b, 0) / prices.length : 0;
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
+
+  main.innerHTML = `
+    <div class="admin-header">
+      <div>
+        <h1>Analyse de marché</h1>
+        <p>Recherchez une carte ou un produit pour voir les annonces en temps réel sur toutes les plateformes.</p>
+      </div>
+    </div>
+
+    <!-- Barre de recherche -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;">
+      <div style="flex:1;position:relative;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-muted);"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <input type="text" class="form-input" id="analyseSearchInput" placeholder="Ex : Dracaufeu VMAX Alt Art, Pikachu ex 151..." value="${st.query.replace(/"/g,'&quot;')}" style="padding-left:44px;font-size:0.9rem;" onkeydown="if(event.key==='Enter')launchAnalyse()">
+      </div>
+      <button class="admin-save-btn" onclick="launchAnalyse()" style="white-space:nowrap;" ${st.loading ? 'disabled' : ''}>${st.loading ? 'Recherche...' : 'Rechercher'}</button>
+    </div>
+
+    ${st.query && allListings.length > 0 ? `
+    <!-- Stats globales -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Annonces trouvées</div>
+        <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;">${allListings.length}</div>
+      </div>
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Prix moyen</div>
+        <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;">${avgPrice.toFixed(2)} €</div>
+      </div>
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Prix le plus bas</div>
+        <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:#4ade80;">${minPrice.toFixed(2)} €</div>
+      </div>
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Prix le plus haut</div>
+        <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:#f97316;">${maxPrice.toFixed(2)} €</div>
+      </div>
+    </div>
+
+    <!-- Graphique comparatif -->
+    <div class="stat-card" style="padding:20px;margin-bottom:20px;">
+      <h3 style="font-size:0.9rem;font-weight:700;margin-bottom:14px;">Comparatif des prix par plateforme</h3>
+      <div style="height:200px;"><canvas id="analysePlatformChart"></canvas></div>
+    </div>
+    ` : ''}
+
+    <!-- Tabs plateformes -->
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+      ${platKeys.map(k => {
+        const p = PLATFORMS[k];
+        const count = (st.listings[k] || []).length;
+        const active = st.platform === k;
+        return `<button class="table-btn" onclick="analyseState.platform='${k}';renderAnalyseTab(document.getElementById('adminMain'))" style="display:flex;align-items:center;gap:6px;${active ? 'border-color:' + p.color + ';color:' + p.color + ';background:' + p.color + '10;' : ''}">${p.icon} ${p.name} ${count ? '<span style="font-size:0.7rem;opacity:0.7;">(' + count + ')</span>' : ''}</button>`;
+      }).join('')}
+    </div>
+
+    <!-- Résultats de la plateforme active -->
+    <div id="platformListings">
+      ${st.loading ? renderLoadingState() : ''}
+      ${!st.loading && st.query && currentListings.length > 0 ? renderListingsGrid(currentListings, st.platform) : ''}
+      ${!st.loading && st.query && currentListings.length === 0 ? renderNoResults(st.platform, st.query) : ''}
+      ${!st.query ? renderEmptySearch() : ''}
+    </div>
+  `;
+
+  // Build chart si résultats
+  if (st.query && allListings.length > 0) {
+    setTimeout(() => buildPlatformChart(), 100);
+  }
+}
+
+function renderEmptySearch() {
+  return `
+    <div style="text-align:center;padding:60px 20px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1" style="color:var(--text-muted);margin-bottom:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:8px;">Recherchez un produit</h3>
+      <p style="color:var(--text-muted);font-size:0.85rem;max-width:420px;margin:0 auto;">Entrez le nom d'une carte ou d'un produit Pokémon pour récupérer les annonces en temps réel sur Cardmarket, eBay, Vinted, Leboncoin et Facebook Marketplace.</p>
+    </div>`;
+}
+
+function renderLoadingState() {
+  return `
+    <div style="text-align:center;padding:60px 20px;">
+      <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--holo-1);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+      <p style="color:var(--text-muted);font-size:0.85rem;">Récupération des annonces en cours...</p>
+      <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    </div>`;
+}
+
+function renderNoResults(platform, query) {
+  const p = PLATFORMS[platform];
+  const urls = getSearchUrls(query);
+  return `
+    <div style="text-align:center;padding:50px 20px;">
+      <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:16px;">Aucune annonce récupérée sur <strong>${p.name}</strong>.</p>
+      <a href="${urls[platform]}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:50px;font-size:0.82rem;font-weight:600;background:${p.color}15;color:${p.color};border:1px solid ${p.color}30;text-decoration:none;transition:0.3s;" onmouseover="this.style.background='${p.color}25'" onmouseout="this.style.background='${p.color}15'">${p.icon} Ouvrir la recherche sur ${p.name} →</a>
+    </div>`;
+}
+
+function renderListingsGrid(listings, platform) {
+  const p = PLATFORMS[platform];
+  const urls = getSearchUrls(analyseState.query);
+  return `
+    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:0.82rem;color:var(--text-muted);">${listings.length} annonce${listings.length > 1 ? 's' : ''} trouvée${listings.length > 1 ? 's' : ''}</span>
+      <a href="${urls[platform]}" target="_blank" rel="noopener" style="font-size:0.78rem;color:${p.color};text-decoration:none;display:flex;align-items:center;gap:4px;">Voir tout sur ${p.name} →</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">
+      ${listings.map(l => `
+        <div onclick="window.open('${l.url}','_blank')" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor='${p.color}40';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+          <div style="width:100%;aspect-ratio:1;background:var(--bg-elevated);overflow:hidden;position:relative;">
+            ${l.image ? `<img src="${l.image}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.8rem;">Pas d\'image</div>'}
+            <span style="position:absolute;top:8px;left:8px;padding:3px 8px;border-radius:6px;font-size:0.65rem;font-weight:700;background:${p.color};color:#fff;">${p.name}</span>
+          </div>
+          <div style="padding:12px;">
+            <div style="font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;" title="${l.title.replace(/"/g,'&quot;')}">${l.title}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong style="font-family:var(--font-display);font-size:1rem;color:${l.price > 0 ? 'var(--text-primary)' : 'var(--text-muted)'};">${l.price > 0 ? l.price.toFixed(2) + ' €' : 'Prix N/C'}</strong>
+              <span style="font-size:0.65rem;color:var(--text-muted);">${l.seller || ''}</span>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function getSearchUrls(query) {
+  const q = encodeURIComponent(query + ' pokemon');
+  return {
+    cardmarket: `https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(query)}`,
+    ebay: `https://www.ebay.fr/sch/i.html?_nkw=${q}&_sacat=0`,
+    vinted: `https://www.vinted.fr/catalog?search_text=${q}`,
+    leboncoin: `https://www.leboncoin.fr/recherche?text=${encodeURIComponent(query + ' pokemon carte')}`,
+    facebook: `https://www.facebook.com/marketplace/search?query=${encodeURIComponent(query + ' pokemon carte')}`,
+  };
+}
+
+// ─── LANCEMENT DE LA RECHERCHE MULTI-PLATEFORMES ───
+async function launchAnalyse() {
+  const q = document.getElementById('analyseSearchInput')?.value.trim();
+  if (!q) return;
+  analyseState.query = q;
+  analyseState.listings = {};
+  analyseState.loading = true;
+  renderAnalyseTab(document.getElementById('adminMain'));
+
+  // Lancer les scrapes en parallèle
+  const fetchers = [
+    scrapeEbay(q).then(r => { analyseState.listings.ebay = r; }),
+    scrapeCardmarket(q).then(r => { analyseState.listings.cardmarket = r; }),
+    scrapeVinted(q).then(r => { analyseState.listings.vinted = r; }),
+    scrapeLeboncoin(q).then(r => { analyseState.listings.leboncoin = r; }),
+  ];
+  // Facebook n'a pas de page scrapable facilement, on met un array vide
+  analyseState.listings.facebook = [];
+
+  await Promise.allSettled(fetchers);
+  analyseState.loading = false;
+
+  // Sélectionner le premier onglet avec des résultats
+  const first = Object.keys(PLATFORMS).find(k => (analyseState.listings[k] || []).length > 0);
+  if (first) analyseState.platform = first;
+
+  renderAnalyseTab(document.getElementById('adminMain'));
+}
+
+// ─── PROXY FETCH ───
+async function proxyFetch(url) {
+  const proxies = [
+    'https://api.allorigins.win/raw?url=',
+    'https://corsproxy.io/?',
+  ];
+  for (const proxy of proxies) {
+    try {
+      const res = await fetch(proxy + encodeURIComponent(url), { signal: AbortSignal.timeout(12000) });
+      if (res.ok) return await res.text();
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+// ─── SCRAPE EBAY ───
+async function scrapeEbay(query) {
+  try {
+    const url = `https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(query + ' pokemon')}&_sacat=0&LH_BIN=1&_sop=15`;
+    const html = await proxyFetch(url);
+    if (!html) return [];
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const items = doc.querySelectorAll('.s-item');
+    const results = [];
+    items.forEach(item => {
+      const titleEl = item.querySelector('.s-item__title span, .s-item__title');
+      const priceEl = item.querySelector('.s-item__price');
+      const imgEl = item.querySelector('.s-item__image img');
+      const linkEl = item.querySelector('.s-item__link');
+      if (!titleEl || !priceEl) return;
+      const title = titleEl.textContent.trim();
+      if (title === 'Shop on eBay' || title.includes('Résultats')) return;
+      const priceText = priceEl.textContent.replace(/[^\d,.]/g, '').replace(',', '.');
+      const price = parseFloat(priceText) || 0;
+      const image = imgEl?.src || imgEl?.getAttribute('data-src') || '';
+      const link = linkEl?.href || '';
+      if (title && price > 0) results.push({ title, price, image, url: link, seller: '' });
+    });
+    return results.slice(0, 20);
+  } catch(e) { return []; }
+}
+
+// ─── SCRAPE CARDMARKET ───
+async function scrapeCardmarket(query) {
+  try {
+    const url = `https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(query)}`;
+    const html = await proxyFetch(url);
+    if (!html) return [];
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const rows = doc.querySelectorAll('.table-body .row, table.table tbody tr, .product-row, [class*="product"]');
+    const results = [];
+    // Essayer le format table
+    const tableRows = doc.querySelectorAll('table tbody tr, .table-body .row');
+    tableRows.forEach(row => {
+      const linkEl = row.querySelector('a[href*="/Products/"]');
+      const imgEl = row.querySelector('img');
+      const priceEls = row.querySelectorAll('[class*="price"], .price-container, td:last-child');
+      if (!linkEl) return;
+      const title = linkEl.textContent.trim();
+      let price = 0;
+      priceEls.forEach(pe => {
+        const m = pe.textContent.match(/([\d,.]+)\s*€/);
+        if (m && !price) price = parseFloat(m[1].replace(',', '.'));
+      });
+      const image = imgEl?.src || imgEl?.getAttribute('data-src') || '';
+      const link = 'https://www.cardmarket.com' + (linkEl.getAttribute('href') || '');
+      if (title) results.push({ title, price, image, url: link, seller: '' });
+    });
+    // Fallback : chercher les liens produit
+    if (results.length === 0) {
+      doc.querySelectorAll('a[href*="/Pokemon/Products/Singles/"]').forEach(a => {
+        const title = a.textContent.trim();
+        const link = 'https://www.cardmarket.com' + a.getAttribute('href');
+        if (title && title.length > 3) results.push({ title, price: 0, image: '', url: link, seller: '' });
+      });
+    }
+    return results.slice(0, 20);
+  } catch(e) { return []; }
+}
+
+// ─── SCRAPE VINTED ───
+async function scrapeVinted(query) {
+  try {
+    const url = `https://www.vinted.fr/catalog?search_text=${encodeURIComponent(query + ' pokemon')}`;
+    const html = await proxyFetch(url);
+    if (!html) return [];
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const results = [];
+    // Vinted utilise du JS hydration, chercher les données JSON dans le HTML
+    const scripts = doc.querySelectorAll('script');
+    for (const sc of scripts) {
+      const text = sc.textContent;
+      if (text.includes('"catalog_items"') || text.includes('"items"')) {
+        try {
+          // Chercher un bloc JSON avec les items
+          const match = text.match(/"items"\s*:\s*(\[[\s\S]*?\])/);
+          if (match) {
+            const items = JSON.parse(match[1]);
+            items.forEach(item => {
+              results.push({
+                title: item.title || '',
+                price: parseFloat(item.price || item.total_item_price || 0),
+                image: item.photo?.url || item.photos?.[0]?.url || '',
+                url: `https://www.vinted.fr/items/${item.id}`,
+                seller: item.user?.login || '',
+              });
+            });
+          }
+        } catch(e) {}
+      }
+    }
+    // Fallback : parser le HTML directement
+    if (results.length === 0) {
+      doc.querySelectorAll('[data-testid*="item"], .feed-grid__item, [class*="ItemBox"]').forEach(el => {
+        const titleEl = el.querySelector('[data-testid*="title"], [class*="title"]');
+        const priceEl = el.querySelector('[data-testid*="price"], [class*="price"]');
+        const imgEl = el.querySelector('img');
+        const linkEl = el.querySelector('a[href*="/items/"]');
+        if (titleEl || priceEl) {
+          const priceText = (priceEl?.textContent || '').replace(/[^\d,.]/g, '').replace(',', '.');
+          results.push({
+            title: titleEl?.textContent?.trim() || 'Article Vinted',
+            price: parseFloat(priceText) || 0,
+            image: imgEl?.src || imgEl?.getAttribute('data-src') || '',
+            url: linkEl ? 'https://www.vinted.fr' + linkEl.getAttribute('href') : url,
+            seller: '',
+          });
+        }
+      });
+    }
+    return results.slice(0, 20);
+  } catch(e) { return []; }
+}
+
+// ─── SCRAPE LEBONCOIN ───
+async function scrapeLeboncoin(query) {
+  try {
+    const url = `https://www.leboncoin.fr/recherche?text=${encodeURIComponent(query + ' pokemon carte')}&category=55`;
+    const html = await proxyFetch(url);
+    if (!html) return [];
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const results = [];
+    // LBC utilise Next.js, les données sont dans __NEXT_DATA__
+    const nextScript = doc.getElementById('__NEXT_DATA__');
+    if (nextScript) {
+      try {
+        const data = JSON.parse(nextScript.textContent);
+        const ads = data?.props?.pageProps?.searchData?.ads || data?.props?.pageProps?.ads || [];
+        ads.forEach(ad => {
+          results.push({
+            title: ad.subject || ad.title || '',
+            price: ad.price?.[0] || parseFloat(ad.price_cents) / 100 || 0,
+            image: ad.images?.urls_large?.[0] || ad.images?.small_url || ad.images?.urls?.[0] || '',
+            url: ad.url ? `https://www.leboncoin.fr${ad.url}` : url,
+            seller: ad.owner?.name || '',
+          });
+        });
+      } catch(e) {}
+    }
+    // Fallback HTML
+    if (results.length === 0) {
+      doc.querySelectorAll('[data-qa-id="aditem_container"], a[href*="/ad/"]').forEach(el => {
+        const titleEl = el.querySelector('[data-qa-id="aditem_title"], [class*="title"]');
+        const priceEl = el.querySelector('[data-qa-id="aditem_price"], [class*="price"]');
+        const imgEl = el.querySelector('img');
+        if (titleEl) {
+          const priceText = (priceEl?.textContent || '').replace(/[^\d,.]/g, '').replace(',', '.');
+          results.push({
+            title: titleEl.textContent.trim(),
+            price: parseFloat(priceText) || 0,
+            image: imgEl?.src || '',
+            url: el.href || url,
+            seller: '',
+          });
+        }
+      });
+    }
+    return results.slice(0, 20);
+  } catch(e) { return []; }
+}
+
+// ─── GRAPHIQUE COMPARATIF PAR PLATEFORME ───
+function buildPlatformChart() {
+  const canvas = document.getElementById('analysePlatformChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const labels = [];
+  const avgData = [];
+  const minData = [];
+  const colors = [];
+
+  Object.keys(PLATFORMS).forEach(k => {
+    const list = analyseState.listings[k] || [];
+    const prices = list.map(l => l.price).filter(p => p > 0);
+    if (prices.length === 0) return;
+    labels.push(PLATFORMS[k].name);
+    avgData.push(prices.reduce((a,b) => a+b, 0) / prices.length);
+    minData.push(Math.min(...prices));
+    colors.push(PLATFORMS[k].color);
+  });
+
+  if (labels.length === 0) return;
+
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Prix moyen', data: avgData, backgroundColor: colors.map(c => c + 'aa'), borderColor: colors, borderWidth: 1, borderRadius: 6 },
+        { label: 'Prix min', data: minData, backgroundColor: colors.map(c => c + '44'), borderColor: colors.map(c => c + '88'), borderWidth: 1, borderRadius: 6 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#a1a1aa', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: 'rgba(10,10,18,0.9)', titleColor: '#fff', bodyColor: '#d4d4d8',
+          callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} €` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#71717a', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        y: { ticks: { color: '#71717a', font: { size: 10 }, callback: v => v.toFixed(0) + ' €' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}} /* fin ancien scraping + if(false) */
+
 
 // ═══════════════════════════════════════
 //  ACCOUNTING TAB
@@ -648,7 +1373,7 @@ function renderCardsTab(container) {
                   </div>
                 </td>
                 <td><span style="font-size:0.75rem;font-weight:600;color:${typeColor};">${typeLabel}</span></td>
-                <td><span style="font-size:0.8rem;">${{'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'}[l.origin] || '🇫🇷'} ${l.origin || 'FR'}</span></td>
+                <td><span style="font-size:0.8rem;">${{'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'}[l.origin] || '🇫🇷'}</span></td>
                 <td><span class="condition-badge condition-${l.conditionClass || 'nm'}">${l.condition}</span></td>
                 <td>${(l.type || 'Carte') !== 'Carte' ? `<span style="font-size:0.75rem;font-weight:600;color:${(l.stockQty || 0) > 0 ? '#4ade80' : '#ef4444'};">${(l.stockQty || 0) > 0 ? (l.stockQty + ' en stock') : 'Hors stock'}</span>` : '<span style="font-size:0.75rem;color:var(--text-muted);">1</span>'}</td>
                 <td><strong>${parseFloat(l.price).toFixed(2)} €</strong></td>
@@ -1375,6 +2100,381 @@ function deleteCard(index) {
   listings.splice(index, 1);
   saveListings(listings);
   renderCardsTab(document.getElementById('adminMain'));
+}
+
+// ═══════════════════════════════════════
+//  INVOICES TAB
+// ═══════════════════════════════════════
+let invoiceSearch = '';
+
+function renderInvoicesTab(main) {
+  const allOrders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]').reverse();
+  const q = invoiceSearch.toLowerCase();
+  const orders = q
+    ? allOrders.filter(o =>
+        (o.id || '').toLowerCase().includes(q) ||
+        (o.email || '').toLowerCase().includes(q) ||
+        (o.userName || '').toLowerCase().includes(q) ||
+        (o.date || '').includes(q)
+      )
+    : allOrders;
+
+  const totalRevenue = allOrders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+
+  main.innerHTML = `
+    <div class="admin-header">
+      <div>
+        <h1>Factures</h1>
+        <p>${allOrders.length} facture${allOrders.length > 1 ? 's' : ''} · Total : ${totalRevenue.toFixed(2)} €</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:24px;align-items:center;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;position:relative;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <input type="text" class="form-input" placeholder="Rechercher par n°, client, email, date..." value="${invoiceSearch.replace(/"/g, '&quot;')}" oninput="invoiceSearch=this.value;renderInvoicesTab(document.getElementById('adminMain'))" style="padding-left:40px;font-size:0.85rem;">
+      </div>
+      <span style="font-size:0.8rem;color:var(--text-muted);">${orders.length} résultat${orders.length > 1 ? 's' : ''}</span>
+    </div>
+
+    ${orders.length === 0 ? `
+      <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+        <p style="font-size:0.9rem;">${q ? 'Aucune facture trouvée pour cette recherche.' : 'Aucune facture enregistrée.'}</p>
+      </div>
+    ` : `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>N° Facture</th>
+              <th>Client</th>
+              <th>Date</th>
+              <th>Articles</th>
+              <th>Total</th>
+              <th>Détails</th>
+              <th>PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orders.map((o, i) => {
+              const details = o.details || [];
+              const addr = [o.userAddress, o.userZip, o.userCity].filter(Boolean).join(', ');
+              return `
+                <tr>
+                  <td><strong style="font-family:var(--font-display);font-size:0.8rem;color:var(--holo-1);">${o.id || 'HOL-' + (o.ts || i)}</strong></td>
+                  <td>
+                    <div style="font-size:0.85rem;font-weight:600;">${o.userName && o.userName.trim() ? o.userName.trim() : '—'}</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">${o.email}</div>
+                    ${addr ? `<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${addr}</div>` : ''}
+                  </td>
+                  <td style="font-size:0.85rem;white-space:nowrap;">${o.date}</td>
+                  <td style="font-size:0.85rem;">${o.items} article${o.items > 1 ? 's' : ''}</td>
+                  <td><strong style="font-family:var(--font-display);">${parseFloat(o.total).toFixed(2)} €</strong></td>
+                  <td>
+                    <button class="table-btn" onclick="toggleInvoiceDetail('inv-detail-${i}')" style="font-size:0.72rem;padding:5px 10px;">
+                      Voir
+                    </button>
+                  </td>
+                  <td>
+                    <button class="table-btn" onclick="downloadInvoice(${allOrders.indexOf(o)})" style="display:flex;align-items:center;gap:5px;font-size:0.72rem;padding:5px 10px;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                      PDF
+                    </button>
+                  </td>
+                </tr>
+                <tr id="inv-detail-${i}" style="display:none;">
+                  <td colspan="7" style="padding:16px 20px;background:rgba(77,201,246,0.02);border-left:3px solid var(--holo-1);">
+                    <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px;">Détail de la commande</div>
+                    ${details.length > 0 ? `
+                      <table style="width:100%;font-size:0.82rem;">
+                        <thead><tr>
+                          <th style="text-align:left;padding:6px 8px;font-size:0.7rem;color:var(--text-muted);border-bottom:1px solid var(--border);">Article</th>
+                          <th style="text-align:left;padding:6px 8px;font-size:0.7rem;color:var(--text-muted);border-bottom:1px solid var(--border);">Extension</th>
+                          <th style="text-align:right;padding:6px 8px;font-size:0.7rem;color:var(--text-muted);border-bottom:1px solid var(--border);">Prix</th>
+                        </tr></thead>
+                        <tbody>
+                          ${details.map(d => `
+                            <tr>
+                              <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);">${d.name}</td>
+                              <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);color:var(--text-muted);">${d.set || '—'}</td>
+                              <td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:right;font-weight:600;">${parseFloat(d.price).toFixed(2)} €</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    ` : `<p style="font-size:0.82rem;color:var(--text-muted);">${o.items} article${o.items > 1 ? 's' : ''} — détails non disponibles</p>`}
+                    <div style="margin-top:12px;text-align:right;font-family:var(--font-display);font-size:1rem;font-weight:800;">Total : ${parseFloat(o.total).toFixed(2)} €</div>
+                  </td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `}
+  `;
+}
+
+function toggleInvoiceDetail(id) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+// ═══════════════════════════════════════
+//  ANNOUNCEMENTS TAB
+// ═══════════════════════════════════════
+
+function getAnnouncementsData() {
+  try {
+    const data = JSON.parse(localStorage.getItem('holofoil_announcements'));
+    if (data && data.length > 0) return data;
+  } catch(e) {}
+  return [
+    '2 Boosters offerts à partir de 200€ d\'achat',
+    'Livraison offerte à partir de 100€ d\'achats · France métropolitaine',
+    'Nouvelle collection Écarlate & Violet disponible',
+  ];
+}
+
+function saveAnnouncementsData(arr) {
+  localStorage.setItem('holofoil_announcements', JSON.stringify(arr));
+}
+
+function getMarqueeData() {
+  try {
+    const data = JSON.parse(localStorage.getItem('holofoil_marquee'));
+    if (data && data.length > 0) return data;
+  } catch(e) {}
+  return ['Authenticité Garantie', 'Livraison Sécurisée', 'Rachat au Meilleur Prix', 'Paiement Sécurisé', 'Expert Pokémon'];
+}
+
+function saveMarqueeData(arr) {
+  localStorage.setItem('holofoil_marquee', JSON.stringify(arr));
+}
+
+function renderAnnouncementsTab(main) {
+  const announcements = getAnnouncementsData();
+  const marquee = getMarqueeData();
+
+  main.innerHTML = `
+    <div class="admin-header">
+      <div>
+        <h1>Annonces</h1>
+        <p>Gérez les bandeaux d'annonce et le texte défilant de la page d'accueil.</p>
+      </div>
+    </div>
+
+    <!-- ═══ BANDEAU D'ANNONCE ═══ -->
+    <div class="stat-card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <h3 style="font-size:1rem;font-weight:700;">Bandeau d'annonce</h3>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Messages en haut de page, défilement automatique toutes les 5 secondes.</p>
+        </div>
+        <button class="admin-save-btn" onclick="addAnnouncement()" style="padding:8px 16px;font-size:0.8rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Ajouter
+        </button>
+      </div>
+
+      <div id="announcementsList">
+        ${announcements.map((text, i) => `
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;min-width:20px;">${i + 1}</span>
+            <input type="text" class="form-input announcement-input" value="${text.replace(/"/g, '&quot;')}" style="flex:1;font-size:0.85rem;">
+            <button onclick="moveAnnouncement(${i}, -1)" class="table-btn" style="padding:6px 10px;" title="Monter" ${i === 0 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▲</button>
+            <button onclick="moveAnnouncement(${i}, 1)" class="table-btn" style="padding:6px 10px;" title="Descendre" ${i === announcements.length - 1 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▼</button>
+            <button onclick="deleteAnnouncement(${i})" class="table-btn danger" style="padding:6px 10px;" title="Supprimer">✕</button>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:20px;">
+        <button class="admin-save-btn" onclick="saveAnnouncements()">Enregistrer</button>
+        <button class="table-btn" onclick="resetAnnouncements()">Par défaut</button>
+      </div>
+
+      <div style="margin-top:16px;">
+        <h4 style="font-size:0.75rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Aperçu</h4>
+        <div style="background:linear-gradient(90deg, #4dc9f6, #a855f7, #f97316, #22d3ee, #ec4899, #4dc9f6);background-size:200% 100%;animation:holoShift 6s linear infinite;padding:10px 20px;text-align:center;font-size:0.82rem;font-weight:600;color:#fff;letter-spacing:0.03em;border-radius:8px;">
+          ${announcements[0] || ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ BANDEAU DÉFILANT (MARQUEE) ═══ -->
+    <div class="stat-card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <h3 style="font-size:1rem;font-weight:700;">Bandeau défilant</h3>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Textes en boucle sous la mosaïque d'accueil (Authenticité, Livraison, etc.).</p>
+        </div>
+        <button class="admin-save-btn" onclick="addMarqueeItem()" style="padding:8px 16px;font-size:0.8rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Ajouter
+        </button>
+      </div>
+
+      <div id="marqueeList">
+        ${marquee.map((text, i) => `
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;min-width:20px;">${i + 1}</span>
+            <input type="text" class="form-input marquee-input" value="${text.replace(/"/g, '&quot;')}" style="flex:1;font-size:0.85rem;">
+            <button onclick="moveMarqueeItem(${i}, -1)" class="table-btn" style="padding:6px 10px;" title="Monter" ${i === 0 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▲</button>
+            <button onclick="moveMarqueeItem(${i}, 1)" class="table-btn" style="padding:6px 10px;" title="Descendre" ${i === marquee.length - 1 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▼</button>
+            <button onclick="deleteMarqueeItem(${i})" class="table-btn danger" style="padding:6px 10px;" title="Supprimer">✕</button>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:20px;">
+        <button class="admin-save-btn" onclick="saveMarquee()">Enregistrer</button>
+        <button class="table-btn" onclick="resetMarquee()">Par défaut</button>
+      </div>
+
+      <div style="margin-top:16px;">
+        <h4 style="font-size:0.75rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Aperçu</h4>
+        <div style="overflow:hidden;border-radius:8px;border:1px solid var(--border);background:var(--bg-base);">
+          <div style="display:flex;gap:32px;padding:12px 20px;white-space:nowrap;animation:marqueePreview 12s linear infinite;">
+            ${marquee.map(t => `<span style="font-family:var(--font-display);font-size:0.8rem;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:12px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--holo-1);opacity:0.5;"></span>${t}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CODES PROMO ═══ -->
+    <div class="stat-card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <h3 style="font-size:1rem;font-weight:700;">Codes promo</h3>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Créez des codes de réduction que les clients peuvent saisir dans leur panier.</p>
+        </div>
+        <button class="admin-save-btn" onclick="addPromoCode()" style="padding:8px 16px;font-size:0.8rem;">+ Créer un code</button>
+      </div>
+
+      ${(function(){ const codes = getPromoCodes(); return codes.length === 0 ? '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:20px;">Aucun code promo. Cliquez sur "Créer un code" pour commencer.</p>' : '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Code</th><th>Réduction</th><th>Statut</th><th>Créé le</th><th>Actions</th></tr></thead><tbody>' + codes.map((c, i) => '<tr><td><strong style="font-family:var(--font-display);font-size:0.85rem;letter-spacing:0.05em;">' + c.code + '</strong></td><td><span style="font-size:0.85rem;font-weight:600;color:var(--holo-1);">' + c.percent + '%</span></td><td><span style="padding:3px 10px;border-radius:50px;font-size:0.7rem;font-weight:600;' + (c.active !== false ? 'background:rgba(74,222,128,0.1);color:#4ade80;">' + 'Actif' : 'background:rgba(239,68,68,0.1);color:#ef4444;">' + 'Inactif') + '</span></td><td style="font-size:0.82rem;color:var(--text-muted);">' + (c.created||'—') + '</td><td><div style="display:flex;gap:6px;"><button class="table-btn" onclick="togglePromoCode(' + i + ')" style="font-size:0.72rem;padding:4px 10px;">' + (c.active !== false ? 'Désactiver' : 'Activer') + '</button><button class="table-btn danger" onclick="deletePromoCode(' + i + ')" style="font-size:0.72rem;padding:4px 10px;">Supprimer</button></div></td></tr>').join('') + '</tbody></table></div>'; })()}
+    </div>
+
+    <style>
+      @keyframes marqueePreview {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+    </style>
+  `;
+}
+
+function addAnnouncement() {
+  const data = getAnnouncementsData();
+  data.push('Nouvelle annonce');
+  saveAnnouncementsData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+}
+
+function deleteAnnouncement(idx) {
+  const data = getAnnouncementsData();
+  if (data.length <= 1) { alert('Il faut au moins une annonce.'); return; }
+  data.splice(idx, 1);
+  saveAnnouncementsData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+}
+
+function moveAnnouncement(idx, dir) {
+  const data = getAnnouncementsData();
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= data.length) return;
+  [data[idx], data[newIdx]] = [data[newIdx], data[idx]];
+  saveAnnouncementsData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+}
+
+function saveAnnouncements() {
+  const inputs = document.querySelectorAll('.announcement-input');
+  const data = Array.from(inputs).map(inp => inp.value.trim()).filter(Boolean);
+  if (data.length === 0) { alert('Il faut au moins une annonce.'); return; }
+  saveAnnouncementsData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Annonces enregistrées !');
+}
+
+function resetAnnouncements() {
+  if (!confirm('Réinitialiser les annonces par défaut ?')) return;
+  localStorage.removeItem('holofoil_announcements');
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Annonces réinitialisées');
+}
+
+// ─── MARQUEE CRUD ───
+function addMarqueeItem() {
+  const data = getMarqueeData();
+  data.push('Nouveau texte');
+  saveMarqueeData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+}
+
+function deleteMarqueeItem(idx) {
+  const data = getMarqueeData();
+  if (data.length <= 1) { alert('Il faut au moins un élément.'); return; }
+  data.splice(idx, 1);
+  saveMarqueeData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+}
+
+function moveMarqueeItem(idx, dir) {
+  const data = getMarqueeData();
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= data.length) return;
+  [data[idx], data[newIdx]] = [data[newIdx], data[idx]];
+  saveMarqueeData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+}
+
+function saveMarquee() {
+  const inputs = document.querySelectorAll('.marquee-input');
+  const data = Array.from(inputs).map(inp => inp.value.trim()).filter(Boolean);
+  if (data.length === 0) { alert('Il faut au moins un élément.'); return; }
+  saveMarqueeData(data);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Bandeau défilant enregistré !');
+}
+
+function resetMarquee() {
+  if (!confirm('Réinitialiser le bandeau défilant par défaut ?')) return;
+  localStorage.removeItem('holofoil_marquee');
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Bandeau défilant réinitialisé');
+}
+
+// ─── PROMO CODES CRUD ───
+function getPromoCodes() { try { return JSON.parse(localStorage.getItem('holofoil_promo_codes')||'[]'); } catch(e) { return []; } }
+function savePromoCodes(arr) { localStorage.setItem('holofoil_promo_codes', JSON.stringify(arr)); }
+
+function addPromoCode() {
+  const code = prompt('Code promo (ex: HOLOFOIL10) :');
+  if (!code) return;
+  const percent = parseInt(prompt('Pourcentage de réduction (ex: 10 pour 10%) :'));
+  if (isNaN(percent) || percent < 1 || percent > 100) { alert('Pourcentage invalide (1-100)'); return; }
+  const codes = getPromoCodes();
+  if (codes.find(c => c.code.toUpperCase() === code.toUpperCase())) { alert('Ce code existe déjà'); return; }
+  codes.push({ code: code.toUpperCase(), percent, active: true, created: new Date().toLocaleDateString('fr-FR') });
+  savePromoCodes(codes);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Code promo créé');
+}
+
+function togglePromoCode(idx) {
+  const codes = getPromoCodes();
+  codes[idx].active = !codes[idx].active;
+  savePromoCodes(codes);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+}
+
+function deletePromoCode(idx) {
+  const codes = getPromoCodes();
+  codes.splice(idx, 1);
+  savePromoCodes(codes);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Code supprimé');
 }
 
 // ═══════════════════════════════════════

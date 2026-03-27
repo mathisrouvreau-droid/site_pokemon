@@ -187,7 +187,7 @@ function injectFooter() {
           <h4>Informations</h4>
           <ul>
             <li><a href="#">Conditions générales</a></li>
-            <li><a href="#">Politique de confidentialité</a></li>
+            <li><a href="confidentialite.html">Politique de confidentialité</a></li>
             <li><a href="#">Livraison & Retours</a></li>
           </ul>
         </div>
@@ -236,6 +236,14 @@ function injectCartSidebar() {
     </div>
     <div class="cart-items" id="cartItems"></div>
     <div class="cart-footer">
+      <div id="promoSection" style="margin-bottom:12px;">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="promoCodeInput" placeholder="Code promo" style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:var(--text-primary);font-size:0.82rem;font-family:inherit;outline:none;transition:0.3s;" onfocus="this.style.borderColor='rgba(77,201,246,0.3)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
+          <button onclick="applyPromoCode()" style="padding:10px 16px;border-radius:10px;border:1px solid rgba(77,201,246,0.2);background:rgba(77,201,246,0.06);color:var(--holo-1);font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:0.3s;font-family:inherit;" onmouseover="this.style.background='rgba(77,201,246,0.12)'" onmouseout="this.style.background='rgba(77,201,246,0.06)'">Appliquer</button>
+        </div>
+        <div id="promoStatus" style="margin-top:6px;"></div>
+      </div>
+      <div id="promoDiscount" style="display:none;margin-bottom:8px;"></div>
       <div class="cart-total">
         <span class="cart-total-label">Total</span>
         <span class="cart-total-price" id="cartTotalPrice">0.00 €</span>
@@ -392,7 +400,10 @@ function placeOrder() {
   const cartItems = JSON.parse(localStorage.getItem('holofoil_cart') || '[]');
   if (cartItems.length === 0) { showToast('Votre panier est vide'); return; }
 
-  const total = cartItems.reduce((s, i) => s + (i.price || 0), 0);
+  const subtotal = cartItems.reduce((s, i) => s + (i.price || 0), 0);
+  const promo = (typeof appliedPromo !== 'undefined' && appliedPromo) ? appliedPromo : null;
+  const discount = promo ? subtotal * (promo.percent / 100) : 0;
+  const total = subtotal - discount;
 
   // Get user info for invoice
   const users = JSON.parse(localStorage.getItem('holofoil_users') || '[]');
@@ -408,6 +419,10 @@ function placeOrder() {
     date: new Date().toLocaleDateString('fr-FR'),
     items: cartItems.length,
     details: cartItems.map(i => ({ name: i.name, set: i.set, price: i.price })),
+    subtotal: subtotal.toFixed(2),
+    promoCode: promo ? promo.code : null,
+    promoPercent: promo ? promo.percent : 0,
+    discount: discount.toFixed(2),
     total: total.toFixed(2),
     ts: Date.now(),
   };
@@ -416,9 +431,10 @@ function placeOrder() {
   orders.push(order);
   localStorage.setItem('holofoil_orders', JSON.stringify(orders));
 
-  // Clear cart
+  // Clear cart + promo
   localStorage.setItem('holofoil_cart', '[]');
   if (typeof cart !== 'undefined') { cart.length = 0; }
+  if (typeof appliedPromo !== 'undefined') appliedPromo = null;
   if (typeof updateCartCount === 'function') updateCartCount();
   if (typeof renderCartItems === 'function') renderCartItems();
   if (typeof toggleCart === 'function') toggleCart();

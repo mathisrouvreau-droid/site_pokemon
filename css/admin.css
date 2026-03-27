@@ -546,3 +546,33 @@
   .admin-form .form-row { grid-template-columns: 1fr; }
   .api-search-results { grid-template-columns: repeat(3, 1fr); }
 }
+@media (max-width: 768px) {
+  .admin-sidebar { flex-wrap: wrap; padding: 10px 12px; }
+  .admin-nav { flex-wrap: wrap; gap: 4px; }
+  .admin-nav li a { padding: 6px 10px; font-size: 0.75rem; }
+  .admin-nav li a svg { display: none; }
+  .admin-main { padding: 16px; }
+  .admin-header h1 { font-size: 1.3rem; }
+  .admin-header p { font-size: 0.78rem; }
+  .admin-header-actions { flex-wrap: wrap; gap: 6px; }
+  .admin-modal { max-width: 95vw; max-height: 90vh; }
+  .admin-modal-body { padding: 20px; }
+  .api-search-results { grid-template-columns: repeat(2, 1fr); }
+  .admin-table { font-size: 0.78rem; }
+  .admin-table th, .admin-table td { padding: 8px 10px; }
+  .card-thumb { display: none; }
+}
+@media (max-width: 480px) {
+  .admin-sidebar-logo { font-size: 0.95rem; }
+  .admin-sidebar-footer { display: none; }
+  .admin-nav li a { padding: 5px 8px; font-size: 0.7rem; }
+  .admin-main { padding: 12px; }
+  .stat-card { padding: 16px; }
+  .stat-value { font-size: 1.4rem; }
+  .admin-modal { margin: 8px; }
+  .admin-modal-body { padding: 14px; }
+  .api-search-results { grid-template-columns: 1fr; }
+  .admin-table th, .admin-table td { padding: 6px 8px; font-size: 0.72rem; }
+  .table-btn { padding: 5px 8px; font-size: 0.7rem; }
+  .admin-save-btn { padding: 10px 16px; font-size: 0.82rem; }
+}

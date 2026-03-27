@@ -27,6 +27,7 @@
           <div class="cards-mosaic" id="cardsMosaic"></div>
         </div>
         <div class="overlay"></div>
+        <canvas id="shinyParticles" style="position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;"></canvas>
       </div>
       <!-- Content removed — mosaic speaks for itself -->
     </section>
@@ -128,11 +129,20 @@
   <script src="js/main.js"></script>
   <script>
     // ─── ANNOUNCEMENTS ───
-    const announcements = [
+    const defaultAnnouncements = [
       '2 Boosters offerts à partir de 200€ d\'achat',
-      'Livraison gratuite dès 50€ · France métropolitaine',
+      'Livraison offerte à partir de 100€ d\'achats · France métropolitaine',
       'Nouvelle collection Écarlate & Violet disponible',
     ];
+    // Charger les annonces custom depuis localStorage (éditées via admin)
+    function getAnnouncements() {
+      try {
+        const custom = JSON.parse(localStorage.getItem('holofoil_announcements'));
+        if (custom && custom.length > 0) return custom;
+      } catch(e) {}
+      return defaultAnnouncements;
+    }
+    let announcements = getAnnouncements();
     let annIdx = 0;
     function showAnnouncement() {
       document.getElementById('announcementText').textContent = announcements[annIdx];
@@ -173,6 +183,13 @@
         'https://assets.tcgdex.net/fr/hgss/hgss1/107/high.webp',      // Donphan Prime
         'https://assets.tcgdex.net/fr/ex/ex1/101/high.webp',          // Mewtwo ex
         'https://assets.tcgdex.net/fr/xy/xy2/11/high.webp',           // Dracaufeu EX
+        // Rangée supplémentaire pour couvrir toute la zone
+        'https://assets.tcgdex.net/fr/sm/sm12/236/high.webp',         // Arceus & Dialga & Palkia GX
+        'https://assets.tcgdex.net/fr/swsh/swsh9/172/high.webp',      // Arceus VSTAR
+        'https://assets.tcgdex.net/fr/sv/sv04/228/high.webp',         // Rugit-Lune ex
+        'https://assets.tcgdex.net/fr/bw/bw6/109/high.webp',          // Keldeo EX Full Art
+        'https://assets.tcgdex.net/fr/sm/sm3/150/high.webp',          // Tokopisco GX
+        'https://assets.tcgdex.net/fr/swsh/swsh5/70/high.webp',       // Urshifu VMAX
       ];
 
       mosaic.innerHTML = cards.map(url => `
@@ -185,12 +202,19 @@
     }
 
     // ─── MARQUEE ───
+    const defaultMarqueeItems = [
+      'Authenticité Garantie', 'Livraison Sécurisée',
+      'Rachat au Meilleur Prix', 'Paiement Sécurisé', 'Expert Pokémon',
+    ];
+    function getMarqueeItems() {
+      try {
+        const custom = JSON.parse(localStorage.getItem('holofoil_marquee'));
+        if (custom && custom.length > 0) return custom;
+      } catch(e) {}
+      return defaultMarqueeItems;
+    }
     function buildMarquee() {
-      const items = [
-        'Authenticité Garantie', 'Grading Professionnel', 'Livraison Sécurisée',
-        'Écarlate & Violet', 'Épée & Bouclier', 'Collection XY', 'Cartes Classiques',
-        'Rachat au Meilleur Prix', 'Paiement Sécurisé', 'Expert Pokémon',
-      ];
+      const items = getMarqueeItems();
       const track = document.getElementById('marqueeTrack');
       const html = items.map(t => `<div class="marquee-item"><span class="sep"></span>${t}</div>`).join('');
       track.innerHTML = html + html;
@@ -233,10 +257,176 @@
     }
 
     // ─── INIT ───
+    // ─── PARTICULES SHINY (mouvement aléatoire, pas de direction fixe) ───
+    function initShinyParticles() {
+      const canvas = document.getElementById('shinyParticles');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w, h;
+
+      function resize() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        w = canvas.width = rect.width;
+        h = canvas.height = rect.height;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      const colors = [
+        [77,201,246], [168,85,247], [249,115,22],
+        [236,72,153], [255,255,255], [34,211,238],
+      ];
+
+      function makeParticle(randomY) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 0.25 + 0.05;
+        return {
+          x: Math.random() * w,
+          y: randomY ? Math.random() * h : h + Math.random() * 20,
+          size: Math.random() * 2.2 + 0.8,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          // Dérive lente qui change avec le temps
+          driftAngle: Math.random() * Math.PI * 2,
+          driftSpeed: Math.random() * 0.003 + 0.001,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 0,
+          maxLife: Math.random() * 600 + 200,
+          shape: Math.random() > 0.6 ? 'star' : 'circle',
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.02,
+        };
+      }
+
+      const particles = [];
+      for (let i = 0; i < 30; i++) particles.push(makeParticle(true));
+
+      function drawStar(cx, cy, r, rot) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rot);
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 - Math.PI / 2;
+          ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+          const b = a + Math.PI / 4;
+          ctx.lineTo(Math.cos(b) * r * 0.3, Math.sin(b) * r * 0.3);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, w, h);
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.life++;
+
+          // Fade in / fade out
+          const progress = p.life / p.maxLife;
+          let alpha;
+          if (progress < 0.15) alpha = progress / 0.15;
+          else if (progress > 0.7) alpha = (1 - progress) / 0.3;
+          else alpha = 1;
+          alpha *= 0.6;
+
+          // La dérive change doucement de direction
+          p.driftAngle += (Math.random() - 0.5) * 0.08;
+          p.vx += Math.cos(p.driftAngle) * p.driftSpeed;
+          p.vy += Math.sin(p.driftAngle) * p.driftSpeed;
+          // Friction pour ne pas accélérer à l'infini
+          p.vx *= 0.998;
+          p.vy *= 0.998;
+
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rotation += p.rotSpeed;
+
+          if (p.life >= p.maxLife || p.x < -30 || p.x > w+30 || p.y < -30 || p.y > h+30) {
+            particles[i] = makeParticle(true);
+            continue;
+          }
+
+          const [r,g,b] = p.color;
+          ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+          ctx.shadowColor = `rgba(${r},${g},${b},0.4)`;
+          ctx.shadowBlur = p.size * 3;
+
+          if (p.shape === 'star') {
+            drawStar(p.x, p.y, p.size * 1.8, p.rotation);
+          } else {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.shadowBlur = 0;
+        requestAnimationFrame(animate);
+      }
+      animate();
+    }
+
+    // ─── REFLET HOLOGRAPHIQUE ALÉATOIRE SUR LES CARTES ───
+    function initHoloReflections() {
+      const cards = document.querySelectorAll('.mosaic-card .mc-inner');
+      if (!cards.length) return;
+
+      function triggerSweep() {
+        // Choisir 1-3 cartes au hasard
+        const count = Math.floor(Math.random() * 3) + 1;
+        const picked = new Set();
+        while (picked.size < count && picked.size < cards.length) {
+          picked.add(Math.floor(Math.random() * cards.length));
+        }
+
+        picked.forEach(idx => {
+          const inner = cards[idx];
+          const after = inner;
+          // Direction aléatoire
+          const angle = Math.floor(Math.random() * 360);
+          const startX = (Math.random() - 0.5) * 80;
+          const startY = (Math.random() - 0.5) * 60;
+          const endX = -startX + (Math.random() - 0.5) * 30;
+          const endY = -startY + (Math.random() - 0.5) * 30;
+
+          after.style.setProperty('--sweep-angle', angle + 'deg');
+          after.style.setProperty('--sweep-x', startX + '%');
+          after.style.setProperty('--sweep-y', startY + '%');
+
+          // Faire apparaître
+          requestAnimationFrame(() => {
+            after.querySelector(':scope')?.style; // force reflow
+            const pseudo = after;
+            pseudo.classList.add('holo-active');
+
+            // Déplacer vers la fin
+            setTimeout(() => {
+              after.style.setProperty('--sweep-x', endX + '%');
+              after.style.setProperty('--sweep-y', endY + '%');
+            }, 50);
+
+            // Faire disparaître
+            setTimeout(() => {
+              pseudo.classList.remove('holo-active');
+            }, 1800 + Math.random() * 800);
+          });
+        });
+
+        // Prochain reflet dans 2-6 secondes (aléatoire)
+        setTimeout(triggerSweep, 2000 + Math.random() * 4000);
+      }
+
+      // Démarrer après un petit délai
+      setTimeout(triggerSweep, 1000);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       injectFooter();
       buildMarquee();
       buildMosaic();
+      initShinyParticles();
+      initHoloReflections();
       buildNouveautesHome();
       buildFeatured();
     });

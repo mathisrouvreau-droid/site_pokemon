@@ -290,4 +290,26 @@ textarea.form-input { resize: vertical; min-height: 120px; }
 @media (max-width: 768px) {
   .rachat-form { padding: 24px; }
   .rachat-hero h1 { font-size: 2.2rem; }
+  .rachat-hero p { max-width: 100%; font-size: 0.88rem; }
+  .info-card { padding: 24px; }
+}
+@media (max-width: 480px) {
+  .rachat-hero { padding: 40px 0 24px; }
+  .rachat-hero h1 { font-size: 1.8rem; }
+  .rachat-hero p { font-size: 0.82rem; }
+  .rachat-form { padding: 18px; border-radius: 16px; }
+  .rachat-form-title { font-size: 1.1rem; }
+  .photo-upload-zone { padding: 24px 16px; }
+  .photo-upload-zone h4 { font-size: 0.88rem; }
+  .photo-upload-zone p { font-size: 0.75rem; }
+  .form-input, .form-select { padding: 12px 14px; font-size: 0.85rem; }
+  .form-label { font-size: 0.78rem; }
+  .submit-btn { padding: 14px; font-size: 0.88rem; }
+  .info-card { padding: 18px; }
+  .info-card h3 { font-size: 1rem; }
+  .process-step { gap: 12px; }
+  .step-number { width: 32px; height: 32px; font-size: 0.75rem; }
+  .step-content h4 { font-size: 0.85rem; }
+  .step-content p { font-size: 0.78rem; }
+  .condition-guide li { font-size: 0.82rem; }
 }
