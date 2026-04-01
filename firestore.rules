@@ -8,11 +8,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Orders — lecture/écriture pour l'utilisateur concerné + admin
+    // Orders — lecture pour l'utilisateur concerné + admin, création par Cloud Functions
     match /orders/{doc} {
       allow read: if request.auth != null && (resource.data.email == request.auth.token.email || isAdmin());
       allow create: if request.auth != null;
       allow update, delete: if isAdmin();
+    }
+
+    // Checkout sessions — créées par Cloud Functions, lecture pour l'utilisateur
+    match /checkout_sessions/{doc} {
+      allow read: if request.auth != null && resource.data.email == request.auth.token.email;
     }
 
     // Users — lecture/écriture pour son propre profil

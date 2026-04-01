@@ -8,13 +8,30 @@
       "node_modules/**",
       ".git/**",
       "README.md",
-      "firestore.rules"
+      "firestore.rules",
+      "functions/**"
     ],
     "rewrites": [
+      {
+        "source": "/api/createCheckoutSession",
+        "function": "createCheckoutSession"
+      },
+      {
+        "source": "/api/stripeWebhook",
+        "function": "stripeWebhook"
+      },
+      {
+        "source": "/api/getOrderStatus",
+        "function": "getOrderStatus"
+      },
       {
         "source": "**",
         "destination": "/index.html"
       }
     ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18"
   }
 }

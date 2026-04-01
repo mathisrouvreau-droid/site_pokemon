@@ -161,6 +161,8 @@
   <script src="js/db.js"></script>
   <script src="js/data.js"></script>
   <script src="js/components.js"></script>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script src="js/stripe-checkout.js"></script>
   <script src="js/main.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -168,7 +170,7 @@
       renderFactures();
     });
 
-    function renderFactures() {
+    async function renderFactures() {
       const container = document.getElementById('facturesContent');
       const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
 
@@ -183,9 +185,22 @@
         return;
       }
 
-      const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]')
-        .filter(o => o.email === session.email)
-        .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      // Loader pendant le chargement
+      container.innerHTML = `
+        <div style="text-align:center;padding:60px 20px;">
+          <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.06);border-top-color:var(--holo-1);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 16px;"></div>
+          <p style="color:var(--text-muted);font-size:0.85rem;">Chargement des factures...</p>
+          <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        </div>`;
+
+      // Charger les commandes via DB (Firestore ou localStorage selon la config)
+      let orders = [];
+      try {
+        orders = await DB.getOrdersByEmail(session.email);
+      } catch (e) {
+        console.error('[Holofoil] Erreur chargement factures:', e);
+      }
+      orders.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
       if (orders.length === 0) {
         container.innerHTML = `
@@ -244,8 +259,9 @@
     }
 
     // ─── GÉNÉRATION PDF ───
-    function downloadFacture(orderId) {
-      const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+    async function downloadFacture(orderId) {
+      const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
+      const orders = await DB.getOrdersByEmail(session?.email || '');
       const order = orders.find(o => o.id === orderId);
       if (!order) { showToast('Facture introuvable'); return; }
 

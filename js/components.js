@@ -390,6 +390,18 @@ function openSearchResult(i) {
 
 // ─── PLACE ORDER ───
 function placeOrder() {
+  // Si Stripe est activé → paiement en ligne
+  if (typeof isStripeEnabled === 'function' && isStripeEnabled()) {
+    startStripeCheckout();
+    return;
+  }
+
+  // Sinon → mode local (dev / sans paiement)
+  placeOrderLocal();
+}
+
+// Mode local : enregistre la commande sans paiement réel
+async function placeOrderLocal() {
   const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
   if (!session) {
     showToast('Connectez-vous pour passer commande');
@@ -405,9 +417,13 @@ function placeOrder() {
   const discount = promo ? subtotal * (promo.percent / 100) : 0;
   const total = subtotal - discount;
 
-  // Get user info for invoice
-  const users = JSON.parse(localStorage.getItem('holofoil_users') || '[]');
-  const user = users.find(u => u.email === session.email) || {};
+  // Get user info
+  let user = {};
+  try {
+    user = await DB.getUserByEmail(session.email) || {};
+  } catch (e) {
+    user = (JSON.parse(localStorage.getItem('holofoil_users') || '[]')).find(u => u.email === session.email) || {};
+  }
 
   const order = {
     id: 'HOL-' + Date.now().toString(36).toUpperCase(),
@@ -424,12 +440,20 @@ function placeOrder() {
     promoPercent: promo ? promo.percent : 0,
     discount: discount.toFixed(2),
     total: total.toFixed(2),
+    status: 'local',
     ts: Date.now(),
   };
 
-  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
-  orders.push(order);
-  localStorage.setItem('holofoil_orders', JSON.stringify(orders));
+  // Sauvegarder via DB (Firestore ou localStorage)
+  try {
+    await DB.addOrder(order);
+  } catch (e) {
+    console.error('[Holofoil] Erreur sauvegarde commande:', e);
+    // Fallback localStorage
+    const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+    orders.push(order);
+    localStorage.setItem('holofoil_orders', JSON.stringify(orders));
+  }
 
   // Clear cart + promo
   localStorage.setItem('holofoil_cart', '[]');

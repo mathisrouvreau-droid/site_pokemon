@@ -127,7 +127,18 @@ function switchTab(tab) {
 // ═══════════════════════════════════════
 //  ANALYSE TAB — Prix Cardmarket/TCGPlayer + Liens Marketplace
 // ═══════════════════════════════════════
-let analyseState = { query: '', card: null, results: [], loading: false, subTab: 'prix' };
+let analyseState = { query: '', card: null, results: [], loading: false, subTab: 'prix', condition: 'NM' };
+
+// États / conditions Cardmarket avec multiplicateurs standards du marché
+const CARD_CONDITIONS = [
+  { id: 'MT', name: 'Mint', multiplier: 1.30, color: '#22c55e', desc: 'Parfait, comme neuf sous blister' },
+  { id: 'NM', name: 'Near Mint', multiplier: 1.00, color: '#4dc9f6', desc: 'Excellent état, micro-défauts possibles' },
+  { id: 'EX', name: 'Excellent', multiplier: 0.75, color: '#f59e0b', desc: 'Légers défauts visibles (bords, surface)' },
+  { id: 'GD', name: 'Good', multiplier: 0.55, color: '#f97316', desc: 'Usure notable, coins et bords marqués' },
+  { id: 'LP', name: 'Light Played', multiplier: 0.40, color: '#ef4444', desc: 'Carte jouée, usure visible des deux côtés' },
+  { id: 'PL', name: 'Played', multiplier: 0.25, color: '#dc2626', desc: 'Très jouée, plis ou défauts importants' },
+  { id: 'PO', name: 'Poor', multiplier: 0.10, color: '#991b1b', desc: 'Très mauvais état, carte endommagée' },
+];
 
 function renderAnalyseTab(main) {
   const st = analyseState;
@@ -137,7 +148,7 @@ function renderAnalyseTab(main) {
     <div class="admin-header">
       <div>
         <h1>Analyse de marché</h1>
-        <p>Prix en temps réel Cardmarket & TCGPlayer + liens vers eBay, Vinted, Leboncoin, Facebook.</p>
+        <p>Prix Cardmarket & TCGPlayer (via pokemontcg.io) + liens vers eBay, Vinted, Leboncoin, Facebook.</p>
       </div>
     </div>
 
@@ -184,21 +195,22 @@ function renderAnalyseTab(main) {
 }
 
 function renderAnalyseDetail(card) {
-  const p = card.pricing || {};
-  const cmk = p.cardmarket || {};
+  const cmk = getPricing(card);
+  const tcgp = getTCGPlayerPricing(card);
   const st = analyseState;
-  // Construire une recherche précise : nom + numéro de carte (ex: "Dracaufeu 11/108")
+  // Construire le vrai numéro de carte au format "12/121"
   const localId = card.localId || '';
+  const setTotal = card.set?.cardCount?.total || card.set?.cardCount?.official || '';
+  const cardNumber = localId && setTotal ? `${localId}/${setTotal}` : localId;
   const setName = card.set?.name || '';
-  const preciseQuery = card.name + (localId ? ' ' + localId : '') + (setName ? ' ' + setName : '');
-  const q = encodeURIComponent(preciseQuery);
-  const qPoke = encodeURIComponent(preciseQuery + ' pokemon carte');
+  // Query optimisée : "Nom Numéro/Total" (ex: "Dracaufeu 11/108")
+  const searchBase = card.name + (cardNumber ? ' ' + cardNumber : '');
   const links = {
-    cardmarket: cmk.idProduct ? `https://www.cardmarket.com/fr/Pokemon/Products/Singles?idProduct=${cmk.idProduct}` : `https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(card.name + (localId ? ' ' + localId : ''))}`,
-    ebay: `https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(card.name + (localId ? ' ' + localId : '') + ' pokemon')}&_sacat=183454&LH_BIN=1`,
-    vinted: `https://www.vinted.fr/catalog?search_text=${encodeURIComponent(card.name + (localId ? ' ' + localId : '') + ' pokemon')}`,
-    leboncoin: `https://www.leboncoin.fr/recherche?text=${qPoke}&category=55`,
-    facebook: `https://www.facebook.com/marketplace/search?query=${qPoke}`,
+    cardmarket: cmk.url || (cmk.idProduct ? `https://www.cardmarket.com/fr/Pokemon/Products/Singles?idProduct=${cmk.idProduct}` : `https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=${encodeURIComponent(searchBase)}`),
+    ebay: `https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(searchBase + ' pokemon carte')}&_sacat=183454&LH_BIN=1`,
+    vinted: `https://www.vinted.fr/catalog?search_text=${encodeURIComponent(searchBase + ' pokemon carte')}`,
+    leboncoin: `https://www.leboncoin.fr/recherche?text=${encodeURIComponent(searchBase + ' pokemon carte')}&category=55`,
+    facebook: `https://www.facebook.com/marketplace/search?query=${encodeURIComponent(searchBase + ' pokemon carte')}`,
   };
   const subBtn = (id, label, icon) => `<button class="table-btn" onclick="analyseState.subTab='${id}';renderAnalyseTab(document.getElementById('adminMain'))" style="display:flex;align-items:center;gap:6px;${st.subTab===id?'border-color:var(--holo-1);color:var(--holo-1);background:rgba(77,201,246,0.06);':''}">${icon} ${label}</button>`;
 
@@ -215,19 +227,67 @@ function renderAnalyseDetail(card) {
             ${card.image?`<img src="${card.image}/high.webp" alt="${card.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;background:var(--bg-elevated);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;\\'><div style=\\'font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;\\'>${(card.name||'').replace(/'/g,"")}</div><div style=\\'font-size:0.72rem;color:var(--text-muted);\\'>${card.localId||card.id||''}</div><div style=\\'font-size:0.68rem;color:var(--text-muted);margin-top:4px;\\'>${(card.set?.name||'').replace(/'/g,"")}</div></div>'">`:`<div style="width:100%;height:100%;background:var(--bg-elevated);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;"><div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">${card.name}</div><div style="font-size:0.72rem;color:var(--text-muted);">${card.localId||card.id||''}</div><div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;">${card.set?.name||''}</div></div>`}
           </div>
           <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:4px;">${card.name}</h3>
-          <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">${card.set?.name||''} ${card.set?.id?'('+card.set.id+')':''}</p>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:2px;">${cardNumber ? `<span style="font-weight:600;color:var(--text-secondary);">${cardNumber}</span> — ` : ''}${card.set?.name||''}</p>
+          <p style="font-size:0.68rem;color:var(--text-muted);margin-bottom:6px;">${card.set?.id?card.set.id:card.id||''}</p>
           ${card.rarity?`<span style="padding:3px 10px;border-radius:50px;font-size:0.68rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${card.rarity}</span>`:''}
 
-          <!-- Prix Cardmarket -->
+          <!-- Sélecteur d'état -->
           <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:left;">
-            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--holo-1);margin-bottom:10px;">Cardmarket (EUR)</div>
-            ${cmk.avg!=null ? `
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Prix bas</span><strong style="color:#4ade80;font-size:0.85rem;">${cmk.low?.toFixed(2)||'—'} €</strong></div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Moyenne</span><strong style="font-size:0.85rem;">${cmk.avg?.toFixed(2)||'—'} €</strong></div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Tendance</span><strong style="font-size:0.85rem;">${cmk.trend?.toFixed(2)||'—'} €</strong></div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Moy. 7j</span><strong style="font-size:0.85rem;">${cmk.avg7?.toFixed(2)||'—'} €</strong></div>
-              <div style="display:flex;justify-content:space-between;"><span style="font-size:0.75rem;color:var(--text-muted);">Moy. 30j</span><strong style="font-size:0.85rem;">${cmk.avg30?.toFixed(2)||'—'} €</strong></div>
-            ` : '<p style="font-size:0.78rem;color:var(--text-muted);">Pas de données Cardmarket</p>'}
+            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px;">État de la carte</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;">
+              ${CARD_CONDITIONS.map(c => {
+                const active = st.condition === c.id;
+                return `<button onclick="analyseState.condition='${c.id}';renderAnalyseTab(document.getElementById('adminMain'))" title="${c.desc}" style="padding:3px 8px;border-radius:6px;border:1px solid ${active?c.color+'80':'var(--border)'};background:${active?c.color+'18':'transparent'};color:${active?c.color:'var(--text-muted)'};font-size:0.65rem;font-weight:${active?'700':'500'};cursor:pointer;transition:0.2s;font-family:inherit;">${c.id}</button>`;
+              }).join('')}
+            </div>
+            ${(() => {
+              const cond = CARD_CONDITIONS.find(c => c.id === st.condition);
+              const m = cond ? cond.multiplier : 1;
+              const isNM = st.condition === 'NM';
+              const fmtPrice = (v) => v != null ? (v * m).toFixed(2) : null;
+              return `
+              <div style="font-size:0.65rem;color:${cond?.color || 'var(--text-muted)'};margin-bottom:8px;font-style:italic;">${cond?.name || ''} ${!isNM ? `(x${m.toFixed(2)} du NM)` : '(référence)'}</div>`;
+            })()}
+          </div>
+
+          <!-- Prix Cardmarket -->
+          <div style="text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--holo-1);">Cardmarket (EUR)</div>
+              ${cmk.updatedAt ? `<span style="font-size:0.6rem;color:var(--text-muted);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px;" title="Source: ${cmk.source}">MAJ ${cmk.updatedAt}</span>` : `<span style="font-size:0.6rem;color:rgba(239,68,68,0.7);background:rgba(239,68,68,0.06);padding:2px 6px;border-radius:4px;" title="Source: ${cmk.source}">Date inconnue</span>`}
+            </div>
+            ${cmk.avg!=null ? (() => {
+              const cond = CARD_CONDITIONS.find(c => c.id === st.condition);
+              const m = cond ? cond.multiplier : 1;
+              const fmt = (v) => v != null ? (v * m).toFixed(2) + ' €' : '—';
+              return `
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Prix bas</span><strong style="color:#4ade80;font-size:0.85rem;">${fmt(cmk.low)}</strong></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Moyenne ventes</span><strong style="font-size:0.85rem;">${fmt(cmk.avg)}</strong></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Tendance</span><strong style="font-size:0.85rem;">${fmt(cmk.trend)}</strong></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Moy. 7j</span><strong style="font-size:0.85rem;">${fmt(cmk.avg7)}</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span style="font-size:0.75rem;color:var(--text-muted);">Moy. 30j</span><strong style="font-size:0.85rem;">${fmt(cmk.avg30)}</strong></div>
+              ${cmk.url ? `<a href="${cmk.url}" target="_blank" rel="noopener" style="display:block;margin-top:8px;font-size:0.72rem;color:var(--holo-1);text-decoration:none;">Voir sur Cardmarket →</a>` : ''}`;
+            })() : '<p style="font-size:0.78rem;color:var(--text-muted);">Pas de données Cardmarket</p>'}
+          </div>
+
+          <!-- Prix TCGPlayer -->
+          ${tcgp ? `
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#f59e0b;">TCGPlayer (USD)</div>
+              ${tcgp.updatedAt ? `<span style="font-size:0.6rem;color:var(--text-muted);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px;">MAJ ${tcgp.updatedAt}</span>` : ''}
+            </div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:8px;font-style:italic;">${tcgp.variant}</div>
+            ${tcgp.market!=null ? `<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Market</span><strong style="font-size:0.85rem;color:#f59e0b;">${tcgp.market?.toFixed(2)||'—'} $</strong></div>` : ''}
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Low</span><strong style="color:#4ade80;font-size:0.85rem;">${tcgp.low?.toFixed(2)||'—'} $</strong></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-muted);">Mid</span><strong style="font-size:0.85rem;">${tcgp.mid?.toFixed(2)||'—'} $</strong></div>
+            <div style="display:flex;justify-content:space-between;"><span style="font-size:0.75rem;color:var(--text-muted);">High</span><strong style="font-size:0.85rem;color:#f97316;">${tcgp.high?.toFixed(2)||'—'} $</strong></div>
+            ${tcgp.url ? `<a href="${tcgp.url}" target="_blank" rel="noopener" style="display:block;margin-top:8px;font-size:0.72rem;color:#f59e0b;text-decoration:none;">Voir sur TCGPlayer →</a>` : ''}
+          </div>` : ''}
+
+          <!-- Avertissement -->
+          <div style="margin-top:14px;padding:8px 10px;border-radius:8px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.1);text-align:left;">
+            <p style="font-size:0.65rem;color:rgba(239,68,68,0.7);line-height:1.4;margin:0;">Les prix affichés sont indicatifs et peuvent différer des annonces réelles. Consultez les plateformes pour les prix à jour.</p>
           </div>
 
           <!-- Lien eBay -->
@@ -245,47 +305,163 @@ function renderAnalyseDetail(card) {
           ${subBtn('marketplace','Voir les annonces','🛒')}
         </div>
 
-        ${st.subTab === 'prix' ? renderPrixView(card, cmk) : ''}
+        ${st.subTab === 'prix' ? renderPrixView(card) : ''}
         ${st.subTab === 'marketplace' ? renderLinksView(card, links) : ''}
       </div>
     </div>`;
 }
 
-function renderPrixView(card, cmk) {
+function renderPrixView(card) {
+  const cmk = getPricing(card);
+  const tcgp = getTCGPlayerPricing(card);
   const hasCmk = cmk.avg != null;
   const hasHolo = cmk['avg-holo'] != null && cmk['avg-holo'] > 0;
-  return `
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;">
-      <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;">Évolution Cardmarket</h3>
-      ${hasCmk ? `<div style="height:220px;"><canvas id="analyseChart"></canvas></div>` : '<p style="color:var(--text-muted);font-size:0.85rem;">Pas de données de prix disponibles pour cette carte.</p>'}
-    </div>
+  const hasTcgp = tcgp != null;
+  const selectedCond = CARD_CONDITIONS.find(c => c.id === analyseState.condition) || CARD_CONDITIONS[1];
+  const m = selectedCond.multiplier;
 
-    <!-- Détail des prix Cardmarket -->
-    ${hasCmk ? `
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;">
-      <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;">Détail Cardmarket${hasHolo ? ' — Normal vs Holo' : ''}</h3>
+  // Condition selector buttons
+  const conditionSelector = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="font-size:0.95rem;font-weight:700;">État de la carte</h3>
+        <span style="font-size:0.68rem;color:var(--text-muted);font-style:italic;">Estimation basée sur le prix NM</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${CARD_CONDITIONS.map(c => {
+          const active = analyseState.condition === c.id;
+          return `<button onclick="analyseState.condition='${c.id}';renderAnalyseTab(document.getElementById('adminMain'))" title="${c.desc}" style="padding:8px 14px;border-radius:10px;border:1px solid ${active?c.color:'var(--border)'};background:${active?c.color+'15':'transparent'};color:${active?c.color:'var(--text-muted)'};font-size:0.78rem;font-weight:${active?'700':'500'};cursor:pointer;transition:0.2s;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;" onmouseover="if(!${active})this.style.borderColor='${c.color}40'" onmouseout="if(!${active})this.style.borderColor='var(--border)'">
+            <span>${c.id}</span>
+            <span style="font-size:0.6rem;opacity:0.7;">${c.id==='NM'?'ref.':'x'+c.multiplier.toFixed(2)}</span>
+          </button>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;border-radius:8px;background:${selectedCond.color}08;border:1px solid ${selectedCond.color}20;">
+        <p style="font-size:0.75rem;color:${selectedCond.color};margin:0;"><strong>${selectedCond.name}</strong> — ${selectedCond.desc}</p>
+      </div>
+    </div>`;
+
+  // Comparison table: all conditions at a glance
+  const condComparisonHtml = hasCmk ? `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;">
+      <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;">Comparatif par état — Tendance Cardmarket</h3>
+      <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="padding:10px 12px;text-align:left;font-size:0.68rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);">État</th>
+              <th style="padding:10px 12px;text-align:center;font-size:0.68rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);border-left:1px solid var(--border);">Coeff.</th>
+              <th style="padding:10px 12px;text-align:center;font-size:0.68rem;font-weight:700;text-transform:uppercase;color:#4ade80;background:rgba(74,222,128,0.03);border-bottom:1px solid var(--border);border-left:1px solid var(--border);">Bas (€)</th>
+              <th style="padding:10px 12px;text-align:center;font-size:0.68rem;font-weight:700;text-transform:uppercase;color:var(--holo-1);background:rgba(77,201,246,0.03);border-bottom:1px solid var(--border);border-left:1px solid var(--border);">Tendance (€)</th>
+              <th style="padding:10px 12px;text-align:center;font-size:0.68rem;font-weight:700;text-transform:uppercase;color:#f59e0b;background:rgba(245,158,11,0.03);border-bottom:1px solid var(--border);border-left:1px solid var(--border);">Moyenne (€)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${CARD_CONDITIONS.map((c, i) => {
+              const active = c.id === analyseState.condition;
+              const bg = active ? c.color + '08' : (i % 2 ? 'rgba(255,255,255,0.01)' : 'transparent');
+              const border = active ? `border-left:3px solid ${c.color};` : '';
+              const fmt = (v) => v != null ? (v * c.multiplier).toFixed(2) : '—';
+              return `<tr style="background:${bg};">
+                <td style="padding:8px 12px;font-size:0.8rem;font-weight:${active?'700':'500'};color:${active?c.color:'var(--text-secondary)'};border-top:1px solid rgba(255,255,255,0.03);${border}">${c.id} — ${c.name}</td>
+                <td style="padding:8px 12px;text-align:center;font-size:0.78rem;color:var(--text-muted);border-left:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.03);">x${c.multiplier.toFixed(2)}</td>
+                <td style="padding:8px 12px;text-align:center;font-weight:600;font-size:0.82rem;color:#4ade80;border-left:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.03);">${fmt(cmk.low)}</td>
+                <td style="padding:8px 12px;text-align:center;font-weight:${active?'700':'600'};font-size:0.82rem;color:${active?c.color:'var(--text-primary)'};border-left:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.03);">${fmt(cmk.trend)}</td>
+                <td style="padding:8px 12px;text-align:center;font-weight:600;font-size:0.82rem;border-left:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.03);">${fmt(cmk.avg)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:0.65rem;color:var(--text-muted);margin-top:10px;font-style:italic;">Les prix par état sont des estimations basées sur les coefficients standards du marché Cardmarket, appliqués au prix Near Mint de référence.</p>
+    </div>` : '';
+
+  // TCGPlayer variants table
+  let tcgpVariantsHtml = '';
+  if (hasTcgp && tcgp.allVariants) {
+    const variantRows = Object.entries(tcgp.allVariants).map(([name, v]) => {
+      const label = name.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+      return `<tr>
+        <td style="padding:8px 12px;font-size:0.8rem;color:var(--text-secondary);border-top:1px solid rgba(255,255,255,0.03);">${label}</td>
+        <td style="padding:8px 12px;text-align:center;font-weight:600;font-size:0.82rem;border-left:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.03);color:#4ade80;">${v.low!=null?v.low.toFixed(2)+' $':'—'}</td>
+        <td style="padding:8px 12px;text-align:center;font-weight:600;font-size:0.82rem;border-left:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.03);">${v.market!=null?v.market.toFixed(2)+' $':(v.mid!=null?v.mid.toFixed(2)+' $':'—')}</td>
+        <td style="padding:8px 12px;text-align:center;font-weight:600;font-size:0.82rem;border-left:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.03);color:#f97316;">${v.high!=null?v.high.toFixed(2)+' $':'—'}</td>
+      </tr>`;
+    }).join('');
+    tcgpVariantsHtml = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:0.95rem;font-weight:700;">TCGPlayer (USD)</h3>
+        ${tcgp.updatedAt ? `<span style="font-size:0.68rem;color:var(--text-muted);background:rgba(255,255,255,0.04);padding:3px 8px;border-radius:6px;">MAJ ${tcgp.updatedAt}</span>` : ''}
+      </div>
+      <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="padding:10px 12px;text-align:left;font-size:0.7rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);">Variante</th>
+              <th style="padding:10px 12px;text-align:center;font-size:0.7rem;font-weight:700;text-transform:uppercase;color:#4ade80;background:rgba(74,222,128,0.03);border-bottom:1px solid var(--border);border-left:1px solid var(--border);">Low</th>
+              <th style="padding:10px 12px;text-align:center;font-size:0.7rem;font-weight:700;text-transform:uppercase;color:#f59e0b;background:rgba(245,158,11,0.03);border-bottom:1px solid var(--border);border-left:1px solid var(--border);">Market</th>
+              <th style="padding:10px 12px;text-align:center;font-size:0.7rem;font-weight:700;text-transform:uppercase;color:#f97316;background:rgba(249,115,22,0.03);border-bottom:1px solid var(--border);border-left:1px solid var(--border);">High</th>
+            </tr>
+          </thead>
+          <tbody>${variantRows}</tbody>
+        </table>
+      </div>
+      ${tcgp.url ? `<a href="${tcgp.url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;font-size:0.75rem;color:#f59e0b;text-decoration:none;">Voir sur TCGPlayer →</a>` : ''}
+    </div>`;
+  }
+
+  // Detail table for selected condition
+  const detailHtml = hasCmk ? `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:0.95rem;font-weight:700;">Détail — <span style="color:${selectedCond.color};">${selectedCond.name}</span>${hasHolo ? ' (Normal vs Reverse)' : ''}</h3>
+        <span style="font-size:0.65rem;color:var(--text-muted);font-style:italic;">${cmk.source}</span>
+      </div>
       <div style="display:grid;grid-template-columns:${hasHolo?'1fr 1fr 1fr':'1fr 1fr'};gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
         <div style="padding:12px;text-align:center;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);font-size:0.7rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Métrique</div>
-        <div style="padding:12px;text-align:center;background:rgba(77,201,246,0.04);border-bottom:1px solid var(--border);border-left:1px solid var(--border);font-size:0.72rem;font-weight:700;color:var(--holo-1);">Normal (€)</div>
-        ${hasHolo?`<div style="padding:12px;text-align:center;background:rgba(168,85,247,0.04);border-bottom:1px solid var(--border);border-left:1px solid var(--border);font-size:0.72rem;font-weight:700;color:#a855f7;">Holo / Reverse (€)</div>`:''}
+        <div style="padding:12px;text-align:center;background:${selectedCond.color}08;border-bottom:1px solid var(--border);border-left:1px solid var(--border);font-size:0.72rem;font-weight:700;color:${selectedCond.color};">Normal (€)</div>
+        ${hasHolo?`<div style="padding:12px;text-align:center;background:rgba(168,85,247,0.04);border-bottom:1px solid var(--border);border-left:1px solid var(--border);font-size:0.72rem;font-weight:700;color:#a855f7;">Reverse Holo (€)</div>`:''}
         ${[
           ['Prix bas', cmk.low, cmk['low-holo']],
           ['Tendance', cmk.trend, cmk['trend-holo']],
-          ['Moyenne', cmk.avg, cmk['avg-holo']],
+          ['Moy. ventes', cmk.avg, cmk['avg-holo']],
           ['Moy. 1 jour', cmk.avg1, cmk['avg1-holo']],
           ['Moy. 7 jours', cmk.avg7, cmk['avg7-holo']],
           ['Moy. 30 jours', cmk.avg30, cmk['avg30-holo']],
         ].map(([label, cv, hv], i) => `
           <div style="padding:10px 12px;font-size:0.82rem;color:var(--text-secondary);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${label}</div>
-          <div style="padding:10px 12px;text-align:center;font-weight:600;font-size:0.85rem;border-left:1px solid var(--border);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${cv!=null?cv.toFixed(2)+' €':'—'}</div>
-          ${hasHolo?`<div style="padding:10px 12px;text-align:center;font-weight:600;font-size:0.85rem;border-left:1px solid var(--border);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${hv!=null?hv.toFixed(2)+' €':'—'}</div>`:''}
+          <div style="padding:10px 12px;text-align:center;font-weight:600;font-size:0.85rem;border-left:1px solid var(--border);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${cv!=null?(cv*m).toFixed(2)+' €':'—'}</div>
+          ${hasHolo?`<div style="padding:10px 12px;text-align:center;font-weight:600;font-size:0.85rem;border-left:1px solid var(--border);${i%2?'background:rgba(255,255,255,0.01);':''}border-top:1px solid rgba(255,255,255,0.03);">${hv!=null?(hv*m).toFixed(2)+' €':'—'}</div>`:''}
         `).join('')}
       </div>
       ${cmk.avg30 && cmk.avg7 ? `
       <div style="margin-top:14px;padding:12px 16px;border-radius:10px;background:${cmk.avg7>cmk.avg30?'rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.15)':'rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15)'};">
-        <p style="font-size:0.82rem;color:var(--text-secondary);">${cmk.avg7>cmk.avg30?'📈':'📉'} <strong style="color:var(--text-primary);">Tendance ${cmk.avg7>cmk.avg30?'haussière':'baissière'}</strong> — Moyenne 7j (${cmk.avg7.toFixed(2)}€) ${cmk.avg7>cmk.avg30?'>':'<'} Moyenne 30j (${cmk.avg30.toFixed(2)}€) soit ${((cmk.avg7-cmk.avg30)/cmk.avg30*100).toFixed(1)}%</p>
+        <p style="font-size:0.82rem;color:var(--text-secondary);">${cmk.avg7>cmk.avg30?'📈':'📉'} <strong style="color:var(--text-primary);">Tendance ${cmk.avg7>cmk.avg30?'haussière':'baissière'}</strong> — Moyenne 7j (${(cmk.avg7*m).toFixed(2)}€) ${cmk.avg7>cmk.avg30?'>':'<'} Moyenne 30j (${(cmk.avg30*m).toFixed(2)}€) soit ${((cmk.avg7-cmk.avg30)/cmk.avg30*100).toFixed(1)}%</p>
       </div>` : ''}
-    </div>` : ''}`;
+      ${cmk.url ? `<a href="${cmk.url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;font-size:0.75rem;color:var(--holo-1);text-decoration:none;">Voir sur Cardmarket →</a>` : ''}
+    </div>` : '';
+
+  return `
+    ${conditionSelector}
+
+    <!-- Graphique comparatif par état -->
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:0.95rem;font-weight:700;">Courbe par état — Cardmarket</h3>
+        ${cmk.updatedAt ? `<span style="font-size:0.68rem;color:var(--text-muted);background:rgba(255,255,255,0.04);padding:3px 8px;border-radius:6px;">MAJ ${cmk.updatedAt}</span>` : ''}
+      </div>
+      ${hasCmk ? `<div style="height:280px;"><canvas id="analyseChart"></canvas></div>` : '<p style="color:var(--text-muted);font-size:0.85rem;">Pas de données de prix disponibles pour cette carte.</p>'}
+    </div>
+
+    <!-- Comparatif tous états -->
+    ${condComparisonHtml}
+
+    <!-- Détail état sélectionné -->
+    ${detailHtml}
+
+    <!-- TCGPlayer -->
+    ${tcgpVariantsHtml}`;
 }
 
 function renderLinksView(card, links) {
@@ -337,12 +513,71 @@ async function analyseSearchCards() {
     analyseState.results = all.filter(c => {
       if (seen.has(c.id)) return false;
       seen.add(c.id);
-      return true;
+      return !isTCGPocketCard(c);
     }).slice(0, 50);
   } catch(e) { console.error(e); }
 
   analyseState.loading = false;
   renderAnalyseTab(document.getElementById('adminMain'));
+}
+
+// ─── Fetch prix temps réel via pokemontcg.io (Cardmarket + TCGPlayer) ───
+async function fetchPTCGPricing(card) {
+  try {
+    let enName = card.name;
+    if (card._lang !== 'en') {
+      const enCard = await fetch('https://api.tcgdex.net/v2/en/cards/' + card.id).then(r => r.ok ? r.json() : null);
+      if (enCard?.name) enName = enCard.name;
+    }
+    const localId = card.localId || '';
+    const q = `name:"${enName}"` + (localId ? ` number:"${localId}"` : '');
+    const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(q)}&select=name,set,number,tcgplayer,cardmarket&pageSize=5`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.data?.length) return null;
+    let match = data.data[0];
+    if (data.data.length > 1) {
+      const setName = (card.set?.name || '').toLowerCase();
+      const better = data.data.find(c => (c.set?.name || '').toLowerCase() === setName);
+      if (better) match = better;
+    }
+    return { cardmarket: match.cardmarket || null, tcgplayer: match.tcgplayer || null };
+  } catch(e) { return null; }
+}
+
+// Normalise les prix : priorise pokemontcg.io (plus à jour), fallback TCGdex
+function getPricing(card) {
+  const ptcg = card._ptcg;
+  if (ptcg?.cardmarket?.prices) {
+    const p = ptcg.cardmarket.prices;
+    return {
+      source: 'Cardmarket via pokemontcg.io',
+      updatedAt: ptcg.cardmarket.updatedAt || null,
+      url: ptcg.cardmarket.url || null,
+      avg: p.averageSellPrice, low: p.lowPrice, trend: p.trendPrice,
+      avg1: p.avg1, avg7: p.avg7, avg30: p.avg30,
+      'avg-holo': p.reverseHoloSell, 'low-holo': p.reverseHoloLow, 'trend-holo': p.reverseHoloTrend,
+    };
+  }
+  const tcgdex = card.pricing?.cardmarket || {};
+  return { source: 'TCGdex (cache)', updatedAt: null, url: null, ...tcgdex };
+}
+
+function getTCGPlayerPricing(card) {
+  const tcgp = card._ptcg?.tcgplayer;
+  if (!tcgp?.prices) return null;
+  const p = tcgp.prices;
+  const variant = p.holofoil || p.normal || p.reverseHolofoil || p['1stEditionHolofoil'] || p['1stEditionNormal'] || Object.values(p)[0];
+  if (!variant) return null;
+  const variantName = p.holofoil ? 'Holofoil' : p.normal ? 'Normal' : p.reverseHolofoil ? 'Reverse Holo' : Object.keys(p)[0];
+  return {
+    updatedAt: tcgp.updatedAt || null,
+    url: tcgp.url || null,
+    variant: variantName,
+    low: variant.low, mid: variant.mid, high: variant.high,
+    market: variant.market, directLow: variant.directLow,
+    allVariants: p,
+  };
 }
 
 // ─── Sélection d'une carte (fetch détail + prix) ───
@@ -364,7 +599,10 @@ async function selectAnalyseCard(cardId, lang) {
         if (alt?.pricing) { card.pricing = alt.pricing; break; }
       }
     }
-    if (card) card._lang = lang || 'fr';
+    if (card) {
+      card._lang = lang || 'fr';
+      card._ptcg = await fetchPTCGPricing(card);
+    }
     analyseState.card = card;
     analyseState.subTab = 'prix';
   } catch(e) { showToast('Erreur de chargement'); }
@@ -372,59 +610,80 @@ async function selectAnalyseCard(cardId, lang) {
   renderAnalyseTab(document.getElementById('adminMain'));
 }
 
-// ─── Graphique évolution prix Cardmarket ───
+// ─── Graphique évolution prix Cardmarket par état ───
 function buildAnalyseChart() {
   const canvas = document.getElementById('analyseChart');
   if (!canvas || typeof Chart === 'undefined') return;
   const card = analyseState.card;
-  const cmk = card?.pricing?.cardmarket;
-  if (!cmk) return;
+  if (!card) return;
+  const cmk = getPricing(card);
+  if (!cmk || cmk.avg == null) return;
 
-  const labels = ['Aujourd\'hui', 'Moy. 1j', 'Moy. 7j', 'Moy. 30j'];
-  const data = [cmk.trend, cmk.avg1, cmk.avg7, cmk.avg30].reverse();
-  const labelsR = [...labels].reverse();
+  const labels = ['Moy. 30j', 'Moy. 7j', 'Moy. 1j', 'Tendance'];
+  const baseData = [cmk.avg30, cmk.avg7, cmk.avg1, cmk.trend];
 
-  // Aussi les données holo si disponibles
-  const holoData = [cmk['trend-holo'], cmk['avg1-holo'], cmk['avg7-holo'], cmk['avg30-holo']].reverse();
-  const hasHolo = holoData.some(v => v != null && v > 0);
-
-  const datasets = [{
-    label: 'Normal',
-    data: data.map(v => v || null),
-    borderColor: '#4dc9f6',
-    backgroundColor: 'rgba(77,201,246,0.1)',
-    fill: true, tension: 0.4, pointRadius: 5, pointHoverRadius: 7, borderWidth: 2.5,
-    pointBackgroundColor: '#4dc9f6',
-  }];
-  if (hasHolo) {
-    datasets.push({
-      label: 'Holo / Reverse',
-      data: holoData.map(v => v || null),
-      borderColor: '#a855f7',
-      backgroundColor: 'rgba(168,85,247,0.08)',
-      fill: true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
-      borderDash: [6, 3],
-      pointBackgroundColor: '#a855f7',
-    });
-  }
+  // Une ligne par état de carte
+  const selectedId = analyseState.condition || 'NM';
+  const datasets = CARD_CONDITIONS.map(cond => {
+    const isSelected = cond.id === selectedId;
+    return {
+      label: `${cond.id} (x${cond.multiplier.toFixed(2)})`,
+      data: baseData.map(v => v != null ? +(v * cond.multiplier).toFixed(2) : null),
+      borderColor: cond.color,
+      backgroundColor: isSelected ? cond.color + '18' : 'transparent',
+      fill: isSelected,
+      tension: 0.4,
+      pointRadius: isSelected ? 6 : 3,
+      pointHoverRadius: isSelected ? 8 : 5,
+      borderWidth: isSelected ? 3 : 1.5,
+      borderDash: isSelected ? [] : [4, 3],
+      pointBackgroundColor: cond.color,
+      order: isSelected ? 0 : 1,
+    };
+  });
 
   new Chart(canvas, {
     type: 'line',
-    data: { labels: labelsR, datasets },
+    data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: hasHolo, position: 'top', labels: { color: '#a1a1aa', font: { size: 11 }, boxWidth: 12 } },
+        legend: {
+          display: true, position: 'top',
+          labels: {
+            color: '#a1a1aa', font: { size: 10 }, boxWidth: 14, padding: 10,
+            usePointStyle: true, pointStyle: 'circle',
+            generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
+              const cond = CARD_CONDITIONS[i];
+              const isSelected = cond.id === selectedId;
+              return {
+                text: cond.id, fillStyle: cond.color, strokeStyle: cond.color,
+                lineWidth: isSelected ? 3 : 1, hidden: !chart.isDatasetVisible(i),
+                datasetIndex: i, fontColor: isSelected ? cond.color : '#71717a',
+              };
+            }),
+          },
+          onClick: (evt, item, legend) => {
+            const ci = legend.chart;
+            const idx = item.datasetIndex;
+            ci.setDatasetVisibility(idx, !ci.isDatasetVisible(idx));
+            ci.update();
+          },
+        },
         tooltip: {
-          backgroundColor: 'rgba(10,10,18,0.92)', titleColor: '#fff', bodyColor: '#d4d4d8',
-          borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, padding: 12,
-          callbacks: { label: ctx => ctx.parsed.y != null ? `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} €` : '' }
+          backgroundColor: 'rgba(10,10,18,0.95)', titleColor: '#fff', bodyColor: '#d4d4d8',
+          borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, padding: 14,
+          callbacks: { label: ctx => ctx.parsed.y != null ? ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} €` : '' }
         }
       },
       scales: {
         x: { ticks: { color: '#71717a', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
-        y: { ticks: { color: '#71717a', font: { size: 10 }, callback: v => v.toFixed(2)+' €' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        y: {
+          ticks: { color: '#71717a', font: { size: 10 }, callback: v => v.toFixed(2)+' €' },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          beginAtZero: true,
+        }
       }
     }
   });
@@ -2255,104 +2514,160 @@ function saveMarqueeData(arr) {
 function renderAnnouncementsTab(main) {
   const announcements = getAnnouncementsData();
   const marquee = getMarqueeData();
+  const codes = getPromoCodes();
+
+  const renderItemRow = (text, i, total, cls, moveFunc, deleteFunc) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);transition:var(--transition);" onmouseover="this.style.borderColor='rgba(77,201,246,0.15)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="font-size:0.7rem;color:var(--text-muted);font-weight:700;min-width:22px;text-align:center;padding:4px 0;background:rgba(255,255,255,0.03);border-radius:6px;">${i + 1}</span>
+      <input type="text" class="form-input ${cls}" value="${text.replace(/"/g, '&quot;')}" placeholder="Saisir le texte..." style="flex:1;">
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button onclick="${moveFunc}(${i}, -1)" class="table-btn" style="padding:6px 8px;font-size:0.7rem;" title="Monter" ${i === 0 ? 'disabled style="opacity:0.3;padding:6px 8px;font-size:0.7rem;"' : ''}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/></svg>
+        </button>
+        <button onclick="${moveFunc}(${i}, 1)" class="table-btn" style="padding:6px 8px;font-size:0.7rem;" title="Descendre" ${i === total - 1 ? 'disabled style="opacity:0.3;padding:6px 8px;font-size:0.7rem;"' : ''}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </button>
+        <button onclick="${deleteFunc}(${i})" class="table-btn danger" style="padding:6px 8px;font-size:0.7rem;" title="Supprimer">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>`;
 
   main.innerHTML = `
     <div class="admin-header">
       <div>
         <h1>Annonces</h1>
-        <p>Gérez les bandeaux d'annonce et le texte défilant de la page d'accueil.</p>
+        <p>Gérez les bandeaux d'annonce, le texte défilant et les codes promo.</p>
       </div>
     </div>
 
-    <!-- ═══ BANDEAU D'ANNONCE ═══ -->
-    <div class="stat-card" style="margin-bottom:24px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <h3 style="font-size:1rem;font-weight:700;">Bandeau d'annonce</h3>
-          <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Messages en haut de page, défilement automatique toutes les 5 secondes.</p>
-        </div>
-        <button class="admin-save-btn" onclick="addAnnouncement()" style="padding:8px 16px;font-size:0.8rem;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-          Ajouter
-        </button>
-      </div>
+    <div class="admin-form">
 
-      <div id="announcementsList">
-        ${announcements.map((text, i) => `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;min-width:20px;">${i + 1}</span>
-            <input type="text" class="form-input announcement-input" value="${text.replace(/"/g, '&quot;')}" style="flex:1;font-size:0.85rem;">
-            <button onclick="moveAnnouncement(${i}, -1)" class="table-btn" style="padding:6px 10px;" title="Monter" ${i === 0 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▲</button>
-            <button onclick="moveAnnouncement(${i}, 1)" class="table-btn" style="padding:6px 10px;" title="Descendre" ${i === announcements.length - 1 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▼</button>
-            <button onclick="deleteAnnouncement(${i})" class="table-btn danger" style="padding:6px 10px;" title="Supprimer">✕</button>
+      <!-- ═══ BANDEAU D'ANNONCE ═══ -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div>
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">Bandeau d'annonce</h3>
+            <p style="font-size:0.75rem;color:var(--text-muted);">Messages en haut de page avec défilement automatique toutes les 5 secondes.</p>
           </div>
-        `).join('')}
-      </div>
-
-      <div style="display:flex;gap:12px;margin-top:20px;">
-        <button class="admin-save-btn" onclick="saveAnnouncements()">Enregistrer</button>
-        <button class="table-btn" onclick="resetAnnouncements()">Par défaut</button>
-      </div>
-
-      <div style="margin-top:16px;">
-        <h4 style="font-size:0.75rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Aperçu</h4>
-        <div style="background:linear-gradient(90deg, #4dc9f6, #a855f7, #f97316, #22d3ee, #ec4899, #4dc9f6);background-size:200% 100%;animation:holoShift 6s linear infinite;padding:10px 20px;text-align:center;font-size:0.82rem;font-weight:600;color:#fff;letter-spacing:0.03em;border-radius:8px;">
-          ${announcements[0] || ''}
+          <button class="admin-save-btn" onclick="addAnnouncement()" style="width:auto;padding:8px 16px;font-size:0.78rem;margin-top:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Ajouter
+          </button>
         </div>
-      </div>
-    </div>
 
-    <!-- ═══ BANDEAU DÉFILANT (MARQUEE) ═══ -->
-    <div class="stat-card" style="margin-bottom:24px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <h3 style="font-size:1rem;font-weight:700;">Bandeau défilant</h3>
-          <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Textes en boucle sous la mosaïque d'accueil (Authenticité, Livraison, etc.).</p>
-        </div>
-        <button class="admin-save-btn" onclick="addMarqueeItem()" style="padding:8px 16px;font-size:0.8rem;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-          Ajouter
-        </button>
-      </div>
-
-      <div id="marqueeList">
-        ${marquee.map((text, i) => `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;min-width:20px;">${i + 1}</span>
-            <input type="text" class="form-input marquee-input" value="${text.replace(/"/g, '&quot;')}" style="flex:1;font-size:0.85rem;">
-            <button onclick="moveMarqueeItem(${i}, -1)" class="table-btn" style="padding:6px 10px;" title="Monter" ${i === 0 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▲</button>
-            <button onclick="moveMarqueeItem(${i}, 1)" class="table-btn" style="padding:6px 10px;" title="Descendre" ${i === marquee.length - 1 ? 'disabled style="opacity:0.3;padding:6px 10px;"' : ''}>▼</button>
-            <button onclick="deleteMarqueeItem(${i})" class="table-btn danger" style="padding:6px 10px;" title="Supprimer">✕</button>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Messages (${announcements.length})</label>
+          <div id="announcementsList">
+            ${announcements.map((text, i) => renderItemRow(text, i, announcements.length, 'announcement-input', 'moveAnnouncement', 'deleteAnnouncement')).join('')}
           </div>
-        `).join('')}
-      </div>
+        </div>
 
-      <div style="display:flex;gap:12px;margin-top:20px;">
-        <button class="admin-save-btn" onclick="saveMarquee()">Enregistrer</button>
-        <button class="table-btn" onclick="resetMarquee()">Par défaut</button>
-      </div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;">
+          <button class="admin-save-btn" onclick="saveAnnouncements()" style="width:auto;padding:10px 24px;font-size:0.82rem;margin-top:0;">Enregistrer</button>
+          <button class="table-btn" onclick="resetAnnouncements()" style="padding:10px 16px;font-size:0.78rem;">Par défaut</button>
+        </div>
 
-      <div style="margin-top:16px;">
-        <h4 style="font-size:0.75rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Aperçu</h4>
-        <div style="overflow:hidden;border-radius:8px;border:1px solid var(--border);background:var(--bg-base);">
-          <div style="display:flex;gap:32px;padding:12px 20px;white-space:nowrap;animation:marqueePreview 12s linear infinite;">
-            ${marquee.map(t => `<span style="font-family:var(--font-display);font-size:0.8rem;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:12px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--holo-1);opacity:0.5;"></span>${t}</span>`).join('')}
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Aperçu en direct</label>
+          <div style="background:linear-gradient(90deg, #4dc9f6, #a855f7, #f97316, #22d3ee, #ec4899, #4dc9f6);background-size:200% 100%;animation:holoShift 6s linear infinite;padding:12px 20px;text-align:center;font-size:0.82rem;font-weight:600;color:#fff;letter-spacing:0.03em;border-radius:var(--radius);">
+            ${announcements[0] || 'Aucune annonce'}
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ═══ CODES PROMO ═══ -->
-    <div class="stat-card" style="margin-bottom:24px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <h3 style="font-size:1rem;font-weight:700;">Codes promo</h3>
-          <p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Créez des codes de réduction que les clients peuvent saisir dans leur panier.</p>
+      <!-- ═══ BANDEAU DÉFILANT (MARQUEE) ═══ -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div>
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">Bandeau défilant</h3>
+            <p style="font-size:0.75rem;color:var(--text-muted);">Textes en boucle sous la mosaïque d'accueil (Authenticité, Livraison, etc.).</p>
+          </div>
+          <button class="admin-save-btn" onclick="addMarqueeItem()" style="width:auto;padding:8px 16px;font-size:0.78rem;margin-top:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Ajouter
+          </button>
         </div>
-        <button class="admin-save-btn" onclick="addPromoCode()" style="padding:8px 16px;font-size:0.8rem;">+ Créer un code</button>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Éléments (${marquee.length})</label>
+          <div id="marqueeList">
+            ${marquee.map((text, i) => renderItemRow(text, i, marquee.length, 'marquee-input', 'moveMarqueeItem', 'deleteMarqueeItem')).join('')}
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:20px;">
+          <button class="admin-save-btn" onclick="saveMarquee()" style="width:auto;padding:10px 24px;font-size:0.82rem;margin-top:0;">Enregistrer</button>
+          <button class="table-btn" onclick="resetMarquee()" style="padding:10px 16px;font-size:0.78rem;">Par défaut</button>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Aperçu en direct</label>
+          <div style="overflow:hidden;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-base);">
+            <div style="display:flex;gap:32px;padding:12px 20px;white-space:nowrap;animation:marqueePreview 12s linear infinite;">
+              ${marquee.map(t => `
+                <span style="font-family:var(--font-display);font-size:0.8rem;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:12px;">
+                  <span style="width:5px;height:5px;border-radius:50%;background:var(--holo-1);opacity:0.5;flex-shrink:0;"></span>${t}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        </div>
       </div>
 
-      ${(function(){ const codes = getPromoCodes(); return codes.length === 0 ? '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:20px;">Aucun code promo. Cliquez sur "Créer un code" pour commencer.</p>' : '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Code</th><th>Réduction</th><th>Statut</th><th>Créé le</th><th>Actions</th></tr></thead><tbody>' + codes.map((c, i) => '<tr><td><strong style="font-family:var(--font-display);font-size:0.85rem;letter-spacing:0.05em;">' + c.code + '</strong></td><td><span style="font-size:0.85rem;font-weight:600;color:var(--holo-1);">' + c.percent + '%</span></td><td><span style="padding:3px 10px;border-radius:50px;font-size:0.7rem;font-weight:600;' + (c.active !== false ? 'background:rgba(74,222,128,0.1);color:#4ade80;">' + 'Actif' : 'background:rgba(239,68,68,0.1);color:#ef4444;">' + 'Inactif') + '</span></td><td style="font-size:0.82rem;color:var(--text-muted);">' + (c.created||'—') + '</td><td><div style="display:flex;gap:6px;"><button class="table-btn" onclick="togglePromoCode(' + i + ')" style="font-size:0.72rem;padding:4px 10px;">' + (c.active !== false ? 'Désactiver' : 'Activer') + '</button><button class="table-btn danger" onclick="deletePromoCode(' + i + ')" style="font-size:0.72rem;padding:4px 10px;">Supprimer</button></div></td></tr>').join('') + '</tbody></table></div>'; })()}
+      <!-- ═══ CODES PROMO ═══ -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div>
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">Codes promo</h3>
+            <p style="font-size:0.75rem;color:var(--text-muted);">Codes de réduction applicables dans le panier.</p>
+          </div>
+        </div>
+
+        <!-- Formulaire de création inline -->
+        <div style="padding:16px;margin-bottom:20px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);">
+          <label class="form-label" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:12px;">Nouveau code</label>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <div style="flex:1;min-width:160px;">
+              <label class="form-label" style="font-size:0.7rem;">Code</label>
+              <input type="text" class="form-input" id="newPromoCode" placeholder="Ex : HOLOFOIL10" style="text-transform:uppercase;">
+            </div>
+            <div style="width:120px;">
+              <label class="form-label" style="font-size:0.7rem;">Réduction (%)</label>
+              <input type="number" class="form-input" id="newPromoPercent" placeholder="10" min="1" max="100">
+            </div>
+            <button class="admin-save-btn" onclick="addPromoCode()" style="width:auto;padding:10px 20px;font-size:0.82rem;margin-top:0;flex-shrink:0;">Créer</button>
+          </div>
+        </div>
+
+        <!-- Liste des codes -->
+        ${codes.length === 0 ? `
+          <div style="text-align:center;padding:30px 20px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:10px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
+            <p style="color:var(--text-muted);font-size:0.82rem;">Aucun code promo actif.</p>
+          </div>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${codes.map((c, i) => `
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);transition:var(--transition);" onmouseover="this.style.borderColor='rgba(77,201,246,0.15)'" onmouseout="this.style.borderColor='var(--border)'">
+                <div style="flex:1;display:flex;align-items:center;gap:14px;min-width:0;">
+                  <strong style="font-family:var(--font-display);font-size:0.88rem;letter-spacing:0.06em;color:var(--text-primary);">${c.code}</strong>
+                  <span style="padding:4px 12px;border-radius:50px;font-size:0.75rem;font-weight:700;background:rgba(77,201,246,0.08);color:var(--holo-1);flex-shrink:0;">-${c.percent}%</span>
+                  <span style="padding:4px 10px;border-radius:50px;font-size:0.68rem;font-weight:600;flex-shrink:0;${c.active !== false ? 'background:rgba(74,222,128,0.1);color:#4ade80;' : 'background:rgba(239,68,68,0.1);color:#ef4444;'}">${c.active !== false ? 'Actif' : 'Inactif'}</span>
+                </div>
+                <span style="font-size:0.72rem;color:var(--text-muted);flex-shrink:0;">${c.created || '—'}</span>
+                <div style="display:flex;gap:4px;flex-shrink:0;">
+                  <button onclick="togglePromoCode(${i})" class="table-btn" style="padding:6px 12px;font-size:0.72rem;">${c.active !== false ? 'Désactiver' : 'Activer'}</button>
+                  <button onclick="deletePromoCode(${i})" class="table-btn danger" style="padding:6px 10px;font-size:0.72rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+
     </div>
 
     <style>
@@ -2450,16 +2765,18 @@ function getPromoCodes() { try { return JSON.parse(localStorage.getItem('holofoi
 function savePromoCodes(arr) { localStorage.setItem('holofoil_promo_codes', JSON.stringify(arr)); }
 
 function addPromoCode() {
-  const code = prompt('Code promo (ex: HOLOFOIL10) :');
-  if (!code) return;
-  const percent = parseInt(prompt('Pourcentage de réduction (ex: 10 pour 10%) :'));
-  if (isNaN(percent) || percent < 1 || percent > 100) { alert('Pourcentage invalide (1-100)'); return; }
+  const codeInput = document.getElementById('newPromoCode');
+  const percentInput = document.getElementById('newPromoPercent');
+  const code = (codeInput?.value || '').trim().toUpperCase();
+  const percent = parseInt(percentInput?.value);
+  if (!code) { codeInput?.focus(); showToast && showToast('Saisissez un code promo', 'error'); return; }
+  if (isNaN(percent) || percent < 1 || percent > 100) { percentInput?.focus(); showToast && showToast('Pourcentage invalide (1-100)', 'error'); return; }
   const codes = getPromoCodes();
-  if (codes.find(c => c.code.toUpperCase() === code.toUpperCase())) { alert('Ce code existe déjà'); return; }
-  codes.push({ code: code.toUpperCase(), percent, active: true, created: new Date().toLocaleDateString('fr-FR') });
+  if (codes.find(c => c.code === code)) { showToast && showToast('Ce code existe déjà', 'error'); return; }
+  codes.push({ code, percent, active: true, created: new Date().toLocaleDateString('fr-FR') });
   savePromoCodes(codes);
   renderAnnouncementsTab(document.getElementById('adminMain'));
-  showToast && showToast('Code promo créé');
+  showToast && showToast('Code promo "' + code + '" créé');
 }
 
 function togglePromoCode(idx) {
