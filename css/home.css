@@ -55,9 +55,9 @@
 .hero-banner {
   position: relative;
   width: 100%;
-  height: 80vh;
-  min-height: 480px;
-  max-height: 780px;
+  height: 65vh;
+  min-height: 380px;
+  max-height: 620px;
   overflow: hidden;
 }
 .hero-banner-bg {
@@ -69,25 +69,43 @@
   position: absolute;
   inset: 0;
 }
-/* Scattered cards mosaic — full card visible, no gaps */
+/* Scrolling cards mosaic — continuous right-to-left */
 .cards-mosaic {
   position: absolute;
-  inset: -80px;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: 1fr;
+  inset: -20px -10px;
+  display: flex;
+  flex-direction: column;
   gap: 3px;
   padding: 0;
-  transform: rotate(-6deg) scale(1.25);
-  opacity: 0.92;
+  transform: rotate(-4deg) scale(1.15);
+  opacity: 0.88;
+  overflow: hidden;
+}
+.mosaic-row {
+  display: flex;
+  gap: 3px;
+  width: max-content;
+  animation: mosaicScroll var(--row-speed, 60s) linear infinite;
+}
+.mosaic-row:nth-child(even) {
+  animation-name: mosaicScrollReverse;
+}
+@keyframes mosaicScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-25%); }
+}
+@keyframes mosaicScrollReverse {
+  0% { transform: translateX(-25%); }
+  100% { transform: translateX(0); }
 }
 .mosaic-card {
-  border-radius: 6px;
+  border-radius: 5px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  transition: transform 0.6s ease;
-  aspect-ratio: 63/88; /* Standard card ratio */
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+  flex-shrink: 0;
+  width: 120px;
+  aspect-ratio: 63/88;
 }
 .mosaic-card .mc-inner {
   width: 100%;
@@ -129,10 +147,16 @@
 .mosaic-card .mc-inner.holo-active::after {
   opacity: 1;
 }
-.mosaic-card:nth-child(odd) { transform: rotate(1deg); }
-.mosaic-card:nth-child(even) { transform: rotate(-1.5deg); }
-.mosaic-card:nth-child(3n) { transform: rotate(2deg) scale(1.02); }
-.mosaic-card:nth-child(4n+1) { transform: rotate(-2.5deg); }
+.mosaic-card .mc-inner {
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.35s ease;
+}
+.mosaic-card:hover .mc-inner {
+  transform: scale(1.15);
+  box-shadow: 0 8px 30px rgba(77,201,246,0.2), 0 4px 20px rgba(0,0,0,0.5);
+}
+.mosaic-card:hover {
+  z-index: 2;
+}
 
 /* Gradient overlay on the mosaic — subtle vignette */
 .hero-banner-bg .overlay {
@@ -348,7 +372,9 @@
 }
 @media (max-width: 480px) {
   .hero-banner { min-height: 280px; max-height: 400px; }
-  .cards-mosaic { grid-template-columns: repeat(4, 1fr); gap: 2px; }
+  .mosaic-card { width: 85px; }
+  .cards-mosaic { gap: 2px; }
+  .mosaic-row { gap: 2px; }
   .featured-grid { grid-template-columns: 1fr; }
   .trust-bar-grid { grid-template-columns: 1fr; }
   .trust-bar-item { padding: 16px; }

@@ -162,45 +162,99 @@
     // ─── MOSAIC (curated cards — mix FR/JA, ex/V/VMAX/Prime/Niv.X/SAR) ───
     function buildMosaic() {
       const mosaic = document.getElementById('cardsMosaic');
+      const ROWS = 4;
+      const speeds = [50, 65, 45, 58];
 
-      // Curated card image URLs — varied extensions, pre-2016 focus + requested cards
-      const cards = [
-        // Mélange varié — Lugia fixé en position 11
-        'https://assets.tcgdex.net/fr/swsh/swsh3/20/high.webp',       // Dracaufeu VMAX
-        'https://assets.tcgdex.net/fr/ex/ex8/102/high.webp',          // Rayquaza ex
-        'https://assets.tcgdex.net/fr/sv/sv03.5/175/high.webp',       // Psykokwak Illustration Rare
-        'https://assets.tcgdex.net/en/dp/dp3/131/high.webp',          // Gardevoir Niv.X
-        'https://assets.tcgdex.net/fr/swsh/swsh11/201/high.webp',     // Giratina VSTAR Alt Art
-        'https://assets.tcgdex.net/fr/xy/xy12/103/high.webp',         // Mewtwo EX Full Art
-        'https://assets.tcgdex.net/fr/hgss/hgss1/110/high.webp',      // Typhlosion Prime
-        'https://assets.tcgdex.net/fr/ex/ex6/105/high.webp',          // Dracaufeu ex
-        'https://assets.tcgdex.net/fr/swsh/swsh4/44/high.webp',       // Pikachu VMAX
-        'https://assets.tcgdex.net/fr/sm/sm11/218/high.webp',         // Ramoloss & Psykokwak GX
-        // ★ Lugia V Full Art — position fixe
-        'https://assets.tcgdex.net/fr/swsh/swsh12/186/high.webp',     // Lugia V Full Art
-        'https://assets.tcgdex.net/fr/ex/ex12/93/high.webp',          // Groudon ex
-        'https://assets.tcgdex.net/fr/bw/bw1/113/high.webp',          // Reshiram Full Art
-        'https://assets.tcgdex.net/en/dp/dp4/105/high.webp',          // Dialga Niv.X
-        'https://assets.tcgdex.net/fr/swsh/swsh7/217/high.webp',      // Rayquaza VMAX Alt Art
-        'https://assets.tcgdex.net/fr/hgss/hgss1/107/high.webp',      // Donphan Prime
-        'https://assets.tcgdex.net/fr/ex/ex1/101/high.webp',          // Mewtwo ex
-        'https://assets.tcgdex.net/fr/xy/xy2/11/high.webp',           // Dracaufeu EX
-        // Rangée supplémentaire pour couvrir toute la zone
-        'https://assets.tcgdex.net/fr/sm/sm12/236/high.webp',         // Arceus & Dialga & Palkia GX
-        'https://assets.tcgdex.net/fr/swsh/swsh9/172/high.webp',      // Arceus VSTAR
-        'https://assets.tcgdex.net/fr/sv/sv04/228/high.webp',         // Rugit-Lune ex
-        'https://assets.tcgdex.net/fr/bw/bw6/109/high.webp',          // Keldeo EX Full Art
-        'https://assets.tcgdex.net/fr/sm/sm3/150/high.webp',          // Tokopisco GX
-        'https://assets.tcgdex.net/fr/swsh/swsh5/70/high.webp',       // Urshifu VMAX
+      // 4 rangées — 40 cartes demandées, IDs TCGdex vérifiés
+      const rows = [
+        [ // Rangée 0
+          { id: 'SV10-039', l: 'ja' },      // Mewtwo ex Team Rocket Alt
+          { id: 'sv8a-207', l: 'ja' },      // Superdofin ex 207/187
+          { id: 'ex13-104', l: 'en' },      // Pikachu Gold Star
+          { id: 'xyp-XY166', l: 'en' },     // Méga Ectoplasma EX Shiny
+          { id: 'swsh11-186', l: 'fr' },    // Giratina V Alternative
+          { id: 'swsh9-154', l: 'fr' },     // Dracaufeu V Alternative
+          { id: 's12a-262', l: 'ja' },      // Arceus VSTAR Universe
+          { id: 'swsh7-192', l: 'fr' },     // Dracolosse V Alternative
+          { id: 'xy3-113', l: 'fr' },       // Méga Lucario EX Full Art
+          { id: 'ex7-107', l: 'en' },       // Gobou Gold Star
+        ],
+        [ // Rangée 1
+          { id: 'sv4M-074', l: 'ja' },      // Steelix AR
+          { id: 'me02.5-286', l: 'en' },    // N's Zoroark ex
+          { id: 'swsh11-TG04', l: 'fr' },   // Lugulabre TG04
+          { id: 'sv04.5-233', l: 'fr' },    // Gardevoir ex Destinées de Paldéa
+          { id: 'swsh12-TG17', l: 'fr' },   // Mysdibule V TG17
+          { id: 'xy6-100', l: 'fr' },       // Méga Gallame EX Full Art
+          { id: 'sv03-205', l: 'fr' },      // Cizayox AR
+          { id: 'swsh12-TG19', l: 'fr' },   // Corvaillus VMAX TG19
+          { id: 'hgss1-105', l: 'fr' },     // Pharamp Prime
+          { id: 'sv08-237', l: 'fr' },      // Milobellus ex SAR
+        ],
+        [ // Rangée 2
+          { id: 'sv08-222', l: 'fr' },      // Libégon ex Étincelle Déferlante
+          { id: 'sv10.5w-027', l: 'fr' },   // Sorbébé
+          { id: 'sm11-35', l: 'fr' },       // Ramoloss et Psykokwak GX
+          { id: 'swsh12-186', l: 'fr' },    // Lugia V Alt Tempête Argentée
+          { id: 'swsh7-217', l: 'fr' },     // Rayquaza VMAX Alt Ciel Rugissant
+          { id: 'cel25-11', l: 'en' },      // Mew (Celebrations)
+          { id: 'svp-132', l: 'fr' },       // Amphinobi ex Promo
+          { id: 'ex11-113', l: 'en' },      // Métalosse Gold Star
+          { id: 'swsh7-215', l: 'fr' },     // Noctali VMAX Alt Évolution Céleste
+          { id: 'ex15-10', l: 'fr' },       // Ronflex Espèce Delta
+        ],
+        [ // Rangée 3
+          { id: 'xy2-108', l: 'fr' },       // Méga Dracaufeu X
+          { id: 'hgss3-82', l: 'fr' },      // Démolosse Prime
+          { id: 'bw1-113', l: 'fr' },       // Reshiram Full Art Noir et Blanc
+          { id: 'svp-174', l: 'fr' },       // Évoli ex Promo
+          { id: 'sv4a-088', l: 'ja' },      // Mimiqui AR
+          { id: 'dc1-15', l: 'en' },        // Groudon ex Team Magma
+          { id: 'pl3-101', l: 'fr' },       // Cradopaud
+          { id: 'sm12-38', l: 'fr' },       // Tiplouf et Tortank GX
+          { id: 'ex10-117', l: 'en' },      // Celebi ex Force Cachées
+          { id: 'dp6-141', l: 'en' },       // Scorvol Niv.X (Gliscor LV.X)
+        ],
       ];
 
-      mosaic.innerHTML = cards.map(url => `
-        <div class="mosaic-card">
-          <div class="mc-inner">
-            <img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" loading="lazy"
-              onerror="this.parentElement.innerHTML='<div style=\\'background:linear-gradient(135deg,#1a1a2e,#2a2a4e);width:100%;height:100%;border-radius:inherit;\\'></div>'">
-          </div>
-        </div>`).join('');
+      // Placeholder immédiat (pas de trou)
+      const ph = `<div class="mosaic-card"><div class="mc-inner" style="background:linear-gradient(135deg,#1a1a2e,#2a2a4e);"></div></div>`;
+      let placeholderHtml = '';
+      for (let r = 0; r < ROWS; r++) {
+        const row = ph.repeat(10).repeat(4);
+        placeholderHtml += `<div class="mosaic-row" style="--row-speed:${speeds[r]}s;">${row}</div>`;
+      }
+      mosaic.innerHTML = placeholderHtml;
+
+      // Fetch chaque carte par ID avec langue appropriée + fallbacks
+      async function fetchCard(id, preferLang) {
+        for (const lang of [preferLang, 'fr', 'en', 'ja'].filter((v,i,a) => a.indexOf(v)===i)) {
+          try {
+            const r = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${id}`);
+            if (r.ok) { const c = await r.json(); if (c.image) return c.image + '/low.webp'; }
+          } catch(e) {}
+        }
+        return null;
+      }
+
+      // Charger toutes les cartes en parallèle
+      Promise.all(rows.map(row => Promise.all(row.map(c => fetchCard(c.id, c.l))))).then(allRows => {
+        let html = '';
+        for (let r = 0; r < ROWS; r++) {
+          const urls = allRows[r].filter(Boolean);
+          const cardsHtml = urls.map(url => `
+            <div class="mosaic-card">
+              <div class="mc-inner" style="background:linear-gradient(135deg,#1a1a2e,#2a2a4e);">
+                <img src="${url}" alt="" loading="eager">
+              </div>
+            </div>`).join('');
+          // Répéter suffisamment pour couvrir toute la largeur en boucle infinie
+          const repeat = cardsHtml.repeat(4);
+          html += `<div class="mosaic-row" style="--row-speed:${speeds[r]}s;">${repeat}</div>`;
+        }
+        mosaic.innerHTML = html;
+        if (typeof initHoloReflections === 'function') setTimeout(initHoloReflections, 500);
+      });
     }
 
     // ─── MARQUEE ───

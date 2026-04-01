@@ -121,6 +121,7 @@ function switchTab(tab) {
   else if (tab === 'accounting') renderAccountingTab(main);
   else if (tab === 'invoices') renderInvoicesTab(main);
   else if (tab === 'announcements') renderAnnouncementsTab(main);
+  else if (tab === 'support') renderSupportTab(main);
   else if (tab === 'users') renderUsersTab(main);
 }
 
@@ -1113,8 +1114,9 @@ let accountingView = 'dashboard'; // 'dashboard' | 'orders' | 'stock' | 'expense
 function getExpenses() { return JSON.parse(localStorage.getItem('holofoil_expenses') || '[]'); }
 function saveExpenses(e) { localStorage.setItem('holofoil_expenses', JSON.stringify(e)); }
 
-function renderAccountingTab(container) {
-  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+async function renderAccountingTab(container) {
+  let orders = [];
+  try { orders = await DB.getOrders(); } catch(e) { orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]'); }
   const listings = getListings();
   const expenses = getExpenses();
 
@@ -1248,9 +1250,11 @@ function renderDashboardView(orders, listings, expenses) {
 }
 
 // ─── ORDERS VIEW ───
-function renderOrdersView() {
+async function renderOrdersView() {
   const el = document.getElementById('accountingContent');
-  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]').reverse();
+  let orders = [];
+  try { orders = await DB.getOrders(); } catch(e) { orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]'); }
+  orders.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
   if (orders.length === 0) {
     el.innerHTML = '<div class="empty-state"><p>Aucune commande enregistrée.</p></div>';
@@ -1485,8 +1489,10 @@ function deleteExpense(index) {
 }
 
 // ─── INVOICE PDF GENERATION ───
-function downloadInvoice(orderIndex) {
-  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]').reverse();
+async function downloadInvoice(orderIndex) {
+  let orders = [];
+  try { orders = await DB.getOrders(); } catch(e) { orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]'); }
+  orders.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   const o = orders[orderIndex];
   if (!o) return;
 
@@ -2366,8 +2372,10 @@ function deleteCard(index) {
 // ═══════════════════════════════════════
 let invoiceSearch = '';
 
-function renderInvoicesTab(main) {
-  const allOrders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]').reverse();
+async function renderInvoicesTab(main) {
+  let allOrders = [];
+  try { allOrders = await DB.getOrders(); } catch(e) { allOrders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]'); }
+  allOrders.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   const q = invoiceSearch.toLowerCase();
   const orders = q
     ? allOrders.filter(o =>
@@ -2855,6 +2863,417 @@ function removeAdmin(index) {
   admins.splice(index, 1);
   saveAdmins(admins);
   renderUsersTab(document.getElementById('adminMain'));
+}
+
+// ═══════════════════════════════════════
+//  SUPPORT
+// ═══════════════════════════════════════
+
+let adminSupportState = { view: 'list', currentTicket: null, filter: 'all' };
+
+function isFirebaseReady() {
+  return typeof FIREBASE_READY !== 'undefined' && FIREBASE_READY;
+}
+
+async function getAllSupportTickets() {
+  if (isFirebaseReady()) {
+    try {
+      const snap = await db.collection('support_tickets').orderBy('updatedAt', 'desc').get();
+      return snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+    } catch (e) {
+      console.error('[Holofoil] Firestore support tickets error:', e);
+    }
+  }
+  const tickets = JSON.parse(localStorage.getItem('holofoil_support_tickets') || '[]');
+  return tickets.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+async function saveSupportTicket(ticket) {
+  if (isFirebaseReady()) {
+    try {
+      if (ticket._docId) {
+        const docId = ticket._docId;
+        const data = { ...ticket };
+        delete data._docId;
+        await db.collection('support_tickets').doc(docId).set(data);
+      } else {
+        const data = { ...ticket };
+        delete data._docId;
+        await db.collection('support_tickets').add(data);
+      }
+      return;
+    } catch (e) {
+      console.error('[Holofoil] Firestore save ticket error:', e);
+    }
+  }
+  const tickets = JSON.parse(localStorage.getItem('holofoil_support_tickets') || '[]');
+  const idx = tickets.findIndex(t => t.id === ticket.id);
+  const data = { ...ticket };
+  delete data._docId;
+  if (idx >= 0) tickets[idx] = data;
+  else tickets.unshift(data);
+  localStorage.setItem('holofoil_support_tickets', JSON.stringify(tickets));
+}
+
+async function deleteSupportTicket(ticket) {
+  if (isFirebaseReady()) {
+    try {
+      if (ticket._docId) {
+        await db.collection('support_tickets').doc(ticket._docId).delete();
+      }
+      return;
+    } catch (e) {
+      console.error('[Holofoil] Firestore delete ticket error:', e);
+    }
+  }
+  const tickets = JSON.parse(localStorage.getItem('holofoil_support_tickets') || '[]');
+  const idx = tickets.findIndex(t => t.id === ticket.id);
+  if (idx >= 0) {
+    tickets.splice(idx, 1);
+    localStorage.setItem('holofoil_support_tickets', JSON.stringify(tickets));
+  }
+}
+
+function supportFormatDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function supportFormatDateTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+    d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function supportStatusBadge(status) {
+  const map = {
+    open: { label: 'Ouvert', bg: 'rgba(77,201,246,0.12)', color: '#4dc9f6', border: 'rgba(77,201,246,0.3)' },
+    resolved: { label: 'Résolu', bg: 'rgba(46,204,113,0.12)', color: '#2ecc71', border: 'rgba(46,204,113,0.3)' },
+    unresolved: { label: 'Non résolu', bg: 'rgba(231,76,60,0.12)', color: '#e74c3c', border: 'rgba(231,76,60,0.3)' }
+  };
+  const s = map[status] || map.open;
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;background:${s.bg};color:${s.color};border:1px solid ${s.border};">${s.label}</span>`;
+}
+
+function supportCategoryLabel(cat) {
+  const map = {
+    order: 'Commande',
+    payment: 'Paiement',
+    account: 'Compte',
+    card: 'Carte',
+    other: 'Autre',
+    general: 'Général'
+  };
+  return map[cat] || cat || 'Autre';
+}
+
+async function autoCleanupTickets(tickets) {
+  const now = Date.now();
+  const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+  const toDelete = [];
+  const kept = [];
+  for (const t of tickets) {
+    if (t.status !== 'open' && t.createdAt && (now - t.createdAt) > fourteenDays) {
+      toDelete.push(t);
+    } else {
+      kept.push(t);
+    }
+  }
+  for (const t of toDelete) {
+    await deleteSupportTicket(t);
+  }
+  return kept;
+}
+
+async function renderSupportTab(main) {
+  if (adminSupportState.view === 'chat' && adminSupportState.currentTicket) {
+    await renderSupportConversation(main);
+    return;
+  }
+
+  main.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);">Chargement des tickets...</div>';
+
+  let tickets = await getAllSupportTickets();
+  tickets = await autoCleanupTickets(tickets);
+
+  const total = tickets.length;
+  const openCount = tickets.filter(t => t.status === 'open').length;
+  const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
+  const unresolvedCount = tickets.filter(t => t.status === 'unresolved').length;
+
+  const filter = adminSupportState.filter;
+  let filtered = tickets;
+  if (filter === 'open') filtered = tickets.filter(t => t.status === 'open');
+  else if (filter === 'resolved') filtered = tickets.filter(t => t.status === 'resolved');
+  else if (filter === 'unresolved') filtered = tickets.filter(t => t.status === 'unresolved');
+
+  const filterBtn = (id, label, count) => {
+    const active = filter === id;
+    return `<button class="table-btn" onclick="adminSupportState.filter='${id}';renderSupportTab(document.getElementById('adminMain'))" style="${active ? 'border-color:var(--holo-1);color:var(--holo-1);background:rgba(77,201,246,0.06);' : ''}">${label} <span style="font-size:0.7rem;opacity:0.7;">(${count})</span></button>`;
+  };
+
+  const ticketRows = filtered.map(t => {
+    const msgCount = (t.messages || []).length;
+    const lastActivity = supportFormatDateTime(t.updatedAt || t.createdAt);
+    return `
+      <tr style="cursor:pointer;transition:background 0.15s;" onmouseenter="this.style.background='rgba(255,255,255,0.02)'" onmouseleave="this.style.background=''" onclick="adminSupportOpenTicket('${t.id}')">
+        <td style="padding:12px 14px;font-family:monospace;font-size:0.78rem;color:var(--holo-1);">${t.id}</td>
+        <td style="padding:12px 14px;">
+          <div style="font-size:0.82rem;font-weight:500;">${t.userName || '—'}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);">${t.email || '—'}</div>
+        </td>
+        <td style="padding:12px 14px;font-size:0.82rem;">${t.subject || '—'}</td>
+        <td style="padding:12px 14px;font-size:0.78rem;color:var(--text-muted);">${supportCategoryLabel(t.category)}</td>
+        <td style="padding:12px 14px;">${supportStatusBadge(t.status)}</td>
+        <td style="padding:12px 14px;font-size:0.78rem;color:var(--text-muted);">${lastActivity}</td>
+        <td style="padding:12px 14px;text-align:center;font-size:0.82rem;">${msgCount}</td>
+      </tr>`;
+  }).join('');
+
+  main.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+      <h2 style="margin:0;font-size:1.3rem;">Support client</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;">
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:1.3rem;font-weight:700;color:var(--holo-1);">${total}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Total tickets</div>
+      </div>
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:1.3rem;font-weight:700;color:#4dc9f6;">${openCount}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Ouverts</div>
+      </div>
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:1.3rem;font-weight:700;color:#2ecc71;">${resolvedCount}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Résolus</div>
+      </div>
+      <div class="stat-card" style="padding:14px;text-align:center;">
+        <div style="font-size:1.3rem;font-weight:700;color:#e74c3c;">${unresolvedCount}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Non résolus</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+      ${filterBtn('all', 'Tous', total)}
+      ${filterBtn('open', 'Ouverts', openCount)}
+      ${filterBtn('resolved', 'Résolus', resolvedCount)}
+      ${filterBtn('unresolved', 'Non résolus', unresolvedCount)}
+    </div>
+
+    <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:14px;opacity:0.7;">Les tickets clos sont supprimés après 14 jours.</div>
+
+    ${filtered.length === 0 ? '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:0.9rem;">Aucun ticket trouvé.</div>' : `
+    <div class="admin-table" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">ID</th>
+            <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Utilisateur</th>
+            <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Sujet</th>
+            <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Catégorie</th>
+            <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Statut</th>
+            <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Dernière activité</th>
+            <th style="padding:10px 14px;text-align:center;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Msgs</th>
+          </tr>
+        </thead>
+        <tbody>${ticketRows}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+async function adminSupportOpenTicket(ticketId) {
+  const tickets = await getAllSupportTickets();
+  const ticket = tickets.find(t => t.id === ticketId);
+  if (!ticket) { alert('Ticket introuvable.'); return; }
+  adminSupportState.view = 'chat';
+  adminSupportState.currentTicket = ticket;
+  renderSupportTab(document.getElementById('adminMain'));
+}
+
+async function renderSupportConversation(main) {
+  const ticket = adminSupportState.currentTicket;
+  if (!ticket) { adminSupportState.view = 'list'; renderSupportTab(main); return; }
+
+  const messages = ticket.messages || [];
+  const isClosed = ticket.status === 'resolved' || ticket.status === 'unresolved';
+
+  const msgBubbles = messages.map(m => {
+    const isAdmin = m.sender === 'admin';
+    const isSystem = m.sender === 'system';
+
+    if (isSystem) {
+      return `<div style="text-align:center;padding:10px 0;">
+        <span style="display:inline-block;padding:6px 16px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);font-size:0.76rem;color:var(--text-muted);font-style:italic;">${m.text}</span>
+      </div>`;
+    }
+
+    const bubbleBg = isAdmin ? 'rgba(139,92,246,0.12)' : 'rgba(77,201,246,0.10)';
+    const bubbleBorder = isAdmin ? 'rgba(139,92,246,0.25)' : 'rgba(77,201,246,0.2)';
+    const nameColor = isAdmin ? '#a78bfa' : '#4dc9f6';
+    const align = isAdmin ? 'flex-end' : 'flex-start';
+
+    return `<div style="display:flex;flex-direction:column;align-items:${align};gap:4px;">
+      <div style="font-size:0.7rem;color:${nameColor};font-weight:600;padding:0 4px;">${m.senderName || m.sender}</div>
+      <div style="max-width:75%;padding:12px 16px;border-radius:16px;background:${bubbleBg};border:1px solid ${bubbleBorder};font-size:0.85rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;">${m.text}</div>
+      <div style="font-size:0.65rem;color:var(--text-muted);padding:0 4px;">${supportFormatDateTime(m.ts)}</div>
+    </div>`;
+  }).join('');
+
+  const closureFormId = 'supportClosureForm';
+
+  main.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <button class="table-btn" onclick="adminSupportState.view='list';adminSupportState.currentTicket=null;renderSupportTab(document.getElementById('adminMain'))" style="font-size:0.8rem;">← Retour aux tickets</button>
+    </div>
+
+    <div class="stat-card" style="padding:18px;margin-bottom:20px;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:8px;">
+        <span style="font-family:monospace;font-size:0.82rem;color:var(--holo-1);">${ticket.id}</span>
+        ${supportStatusBadge(ticket.status)}
+        <span style="font-size:0.78rem;color:var(--text-muted);">${supportCategoryLabel(ticket.category)}</span>
+      </div>
+      <div style="font-size:1.05rem;font-weight:600;margin-bottom:6px;">${ticket.subject || '—'}</div>
+      <div style="font-size:0.8rem;color:var(--text-muted);">
+        ${ticket.userName || '—'} &mdash; <span style="opacity:0.8;">${ticket.email || '—'}</span>
+        &mdash; Créé le ${supportFormatDateTime(ticket.createdAt)}
+      </div>
+      ${ticket.closedReason ? `<div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);font-size:0.78rem;color:var(--text-muted);"><strong>Raison de clôture :</strong> ${ticket.closedReason}</div>` : ''}
+    </div>
+
+    <div class="stat-card" style="padding:0;margin-bottom:20px;">
+      <div style="max-height:450px;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;" id="supportMsgArea">
+        ${msgBubbles || '<div style="text-align:center;color:var(--text-muted);padding:30px;">Aucun message.</div>'}
+      </div>
+    </div>
+
+    ${!isClosed ? `
+    <div class="stat-card" style="padding:16px;margin-bottom:16px;">
+      <textarea class="form-input" id="adminSupportReply" rows="3" placeholder="Écrire une réponse..." style="width:100%;resize:vertical;margin-bottom:10px;"></textarea>
+      <button class="admin-save-btn" onclick="adminSupportSendReply()">Envoyer</button>
+    </div>` : ''}
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      ${!isClosed ? `
+        <button class="admin-save-btn" style="background:linear-gradient(135deg,#2ecc71,#27ae60);padding:8px 18px;font-size:0.8rem;" onclick="adminSupportShowCloseForm('resolved')">Clore — Résolu</button>
+        <button class="admin-save-btn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);padding:8px 18px;font-size:0.8rem;" onclick="adminSupportShowCloseForm('unresolved')">Clore — Non résolu</button>
+      ` : `
+        <button class="admin-save-btn" style="padding:8px 18px;font-size:0.8rem;" onclick="adminSupportReopen()">Rouvrir</button>
+      `}
+      <button class="table-btn" style="border-color:rgba(231,76,60,0.4);color:#e74c3c;font-size:0.8rem;" onclick="adminSupportDelete()">Supprimer</button>
+    </div>
+
+    <div id="${closureFormId}" style="display:none;">
+      <div class="stat-card" style="padding:16px;">
+        <div style="font-size:0.85rem;font-weight:600;margin-bottom:10px;">Raison de clôture</div>
+        <textarea class="form-input" id="adminClosureReason" rows="2" placeholder="Expliquez la raison de la clôture..." style="width:100%;resize:vertical;margin-bottom:10px;"></textarea>
+        <div style="display:flex;gap:8px;">
+          <button class="admin-save-btn" style="padding:8px 18px;font-size:0.8rem;" id="adminClosureConfirmBtn" onclick="adminSupportConfirmClose()">Confirmer</button>
+          <button class="table-btn" style="font-size:0.8rem;" onclick="document.getElementById('${closureFormId}').style.display='none'">Annuler</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // scroll to bottom
+  const msgArea = document.getElementById('supportMsgArea');
+  if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
+}
+
+let _pendingCloseStatus = null;
+
+function adminSupportShowCloseForm(status) {
+  _pendingCloseStatus = status;
+  const form = document.getElementById('supportClosureForm');
+  if (form) {
+    form.style.display = '';
+    document.getElementById('adminClosureReason').focus();
+  }
+}
+
+async function adminSupportConfirmClose() {
+  const ticket = adminSupportState.currentTicket;
+  if (!ticket || !_pendingCloseStatus) return;
+
+  const reason = (document.getElementById('adminClosureReason').value || '').trim();
+  if (!reason) { alert('Veuillez indiquer une raison de clôture.'); return; }
+
+  const now = Date.now();
+  const statusLabel = _pendingCloseStatus === 'resolved' ? 'Résolu' : 'Non résolu';
+
+  ticket.status = _pendingCloseStatus;
+  ticket.closedReason = reason;
+  ticket.updatedAt = now;
+
+  ticket.messages.push({
+    sender: 'system',
+    senderName: 'Système',
+    text: `Ticket clos par le support — ${statusLabel} : ${reason}`,
+    ts: now
+  });
+
+  await saveSupportTicket(ticket);
+  _pendingCloseStatus = null;
+  adminSupportState.currentTicket = ticket;
+  renderSupportTab(document.getElementById('adminMain'));
+}
+
+async function adminSupportReopen() {
+  const ticket = adminSupportState.currentTicket;
+  if (!ticket) return;
+  if (!confirm('Rouvrir ce ticket ?')) return;
+
+  const now = Date.now();
+  ticket.status = 'open';
+  ticket.closedReason = null;
+  ticket.updatedAt = now;
+
+  ticket.messages.push({
+    sender: 'system',
+    senderName: 'Système',
+    text: 'Ticket rouvert par le support.',
+    ts: now
+  });
+
+  await saveSupportTicket(ticket);
+  adminSupportState.currentTicket = ticket;
+  renderSupportTab(document.getElementById('adminMain'));
+}
+
+async function adminSupportDelete() {
+  const ticket = adminSupportState.currentTicket;
+  if (!ticket) return;
+  if (!confirm(`Supprimer définitivement le ticket ${ticket.id} ?`)) return;
+
+  await deleteSupportTicket(ticket);
+  adminSupportState.view = 'list';
+  adminSupportState.currentTicket = null;
+  renderSupportTab(document.getElementById('adminMain'));
+}
+
+async function adminSupportSendReply() {
+  const ticket = adminSupportState.currentTicket;
+  if (!ticket) return;
+
+  const textarea = document.getElementById('adminSupportReply');
+  const text = (textarea.value || '').trim();
+  if (!text) return;
+
+  const now = Date.now();
+  ticket.messages.push({
+    sender: 'admin',
+    senderName: 'Support Holofoil',
+    text: text,
+    ts: now
+  });
+  ticket.updatedAt = now;
+
+  await saveSupportTicket(ticket);
+  adminSupportState.currentTicket = ticket;
+  renderSupportTab(document.getElementById('adminMain'));
 }
 
 // ═══════════════════════════════════════

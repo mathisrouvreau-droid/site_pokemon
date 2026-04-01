@@ -68,16 +68,26 @@ const DB = {
   // ═══ ORDERS (commandes) ═══
   async getOrders() {
     if (!FIREBASE_READY) return JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
-    const snap = await db.collection('orders').orderBy('ts', 'desc').get();
-    return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    try {
+      const snap = await db.collection('orders').get();
+      return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    } catch(e) {
+      console.warn('[Holofoil] Firestore orders query failed, falling back to localStorage:', e.message);
+      return JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+    }
   },
 
   async getOrdersByEmail(email) {
     if (!FIREBASE_READY) {
       return JSON.parse(localStorage.getItem('holofoil_orders') || '[]').filter(o => o.email === email);
     }
-    const snap = await db.collection('orders').where('email', '==', email).orderBy('ts', 'desc').get();
-    return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    try {
+      const snap = await db.collection('orders').where('email', '==', email).get();
+      return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    } catch(e) {
+      console.warn('[Holofoil] Firestore orders query failed, falling back to localStorage:', e.message);
+      return JSON.parse(localStorage.getItem('holofoil_orders') || '[]').filter(o => o.email === email);
+    }
   },
 
   async addOrder(order) {

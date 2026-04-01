@@ -235,6 +235,29 @@
                 <button type="submit" class="account-save-btn">Modifier le mot de passe</button>
               </form>
             </div>
+
+            <!-- Delete account -->
+            <div class="account-section" style="border:1px solid rgba(239,68,68,0.12);background:rgba(239,68,68,0.02);">
+              <h3 class="account-section-title" style="color:#f87171;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                Supprimer mon compte
+              </h3>
+              <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">Cette action est irréversible. Toutes vos données personnelles, commandes, liste de souhaits et tickets de support seront définitivement supprimés.</p>
+              <div id="deleteAccountSection">
+                <button onclick="showDeleteConfirm()" style="padding:10px 22px;border-radius:50px;font-size:0.82rem;font-weight:600;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#f87171;cursor:pointer;transition:0.3s;font-family:inherit;" onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='rgba(239,68,68,0.08)'">Supprimer définitivement mon compte</button>
+              </div>
+              <div id="deleteAccountConfirm" style="display:none;">
+                <div style="padding:16px;border-radius:12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);margin-bottom:14px;">
+                  <p style="font-size:0.82rem;color:#f87171;font-weight:600;margin-bottom:10px;">Confirmez la suppression</p>
+                  <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:14px;">Tapez <strong style="color:var(--text-primary);">SUPPRIMER</strong> pour confirmer.</p>
+                  <input type="text" id="deleteConfirmInput" placeholder="Tapez SUPPRIMER" style="width:100%;padding:10px 14px;border-radius:10px;background:#12121e;border:1px solid rgba(239,68,68,0.2);color:var(--text-primary);font-size:0.85rem;font-family:inherit;outline:none;margin-bottom:12px;transition:border-color 0.2s;" onfocus="this.style.borderColor='rgba(239,68,68,0.5)'" onblur="this.style.borderColor='rgba(239,68,68,0.2)'">
+                  <div style="display:flex;gap:10px;">
+                    <button onclick="executeDeleteAccount()" style="padding:10px 22px;border-radius:50px;font-size:0.82rem;font-weight:600;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;cursor:pointer;transition:0.3s;font-family:inherit;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">Confirmer la suppression</button>
+                    <button onclick="hideDeleteConfirm()" style="padding:10px 18px;border-radius:50px;font-size:0.82rem;font-weight:500;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--text-muted);cursor:pointer;transition:0.3s;font-family:inherit;">Annuler</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -576,17 +599,111 @@
       showToast('Mot de passe modifié avec succès');
     }
 
+    // ─── DELETE ACCOUNT ───
+    function showDeleteConfirm() {
+      document.getElementById('deleteAccountSection').style.display = 'none';
+      document.getElementById('deleteAccountConfirm').style.display = '';
+    }
+    function hideDeleteConfirm() {
+      document.getElementById('deleteAccountConfirm').style.display = 'none';
+      document.getElementById('deleteAccountSection').style.display = '';
+      document.getElementById('deleteConfirmInput').value = '';
+    }
+    async function executeDeleteAccount() {
+      const input = document.getElementById('deleteConfirmInput').value.trim();
+      if (input !== 'SUPPRIMER') {
+        showToast('Tapez SUPPRIMER pour confirmer');
+        return;
+      }
+      const user = getCurrentUser();
+      if (!user) return;
+      const email = user.email;
+
+      try {
+        // 1. Supprimer le profil utilisateur
+        if (FIREBASE_READY) {
+          const userSnap = await db.collection('users').where('email', '==', email).get();
+          const batch1 = db.batch();
+          userSnap.docs.forEach(d => batch1.delete(d.ref));
+          await batch1.commit();
+        }
+        const users = getUsers().filter(u => u.email !== email);
+        saveUsers(users);
+
+        // 2. Supprimer les commandes
+        if (FIREBASE_READY) {
+          const orderSnap = await db.collection('orders').where('email', '==', email).get();
+          const batch2 = db.batch();
+          orderSnap.docs.forEach(d => batch2.delete(d.ref));
+          await batch2.commit();
+        }
+        const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]').filter(o => o.email !== email);
+        localStorage.setItem('holofoil_orders', JSON.stringify(orders));
+
+        // 3. Supprimer la wishlist
+        if (FIREBASE_READY) {
+          const wishSnap = await db.collection('wishlist').where('email', '==', email).get();
+          const batch3 = db.batch();
+          wishSnap.docs.forEach(d => batch3.delete(d.ref));
+          await batch3.commit();
+        }
+        const wishlist = JSON.parse(localStorage.getItem('holofoil_wishlist') || '[]').filter(w => w.email !== email);
+        localStorage.setItem('holofoil_wishlist', JSON.stringify(wishlist));
+
+        // 4. Supprimer les tickets de support
+        if (FIREBASE_READY) {
+          const supportSnap = await db.collection('support_tickets').where('email', '==', email).get();
+          const batch4 = db.batch();
+          supportSnap.docs.forEach(d => batch4.delete(d.ref));
+          await batch4.commit();
+        }
+        const tickets = JSON.parse(localStorage.getItem('holofoil_support_tickets') || '[]').filter(t => t.email !== email);
+        localStorage.setItem('holofoil_support_tickets', JSON.stringify(tickets));
+
+        // 5. Supprimer les notifications
+        if (FIREBASE_READY) {
+          const notifSnap = await db.collection('notifications').where('email', '==', email).get();
+          const batch5 = db.batch();
+          notifSnap.docs.forEach(d => batch5.delete(d.ref));
+          await batch5.commit();
+        }
+
+        // 6. Supprimer le compte Firebase Auth
+        if (FIREBASE_READY && auth.currentUser) {
+          try { await auth.currentUser.delete(); } catch (e) { console.warn('[Holofoil] Auth delete:', e.message); }
+        }
+
+        // 7. Nettoyer la session locale
+        localStorage.removeItem('holofoil_user_session');
+        localStorage.removeItem('holofoil_cart');
+
+        showToast('Compte supprimé. Redirection...');
+        setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+      } catch (e) {
+        console.error('[Holofoil] Erreur suppression compte:', e);
+        showToast('Erreur lors de la suppression. Réessayez.');
+      }
+    }
+
     // ─── ORDER HISTORY ───
-    function renderOrders(email) {
+    async function renderOrders(email) {
       const container = document.getElementById('orderHistory');
-      const orders = JSON.parse(localStorage.getItem(USER_KEYS.orders) || '[]').filter(o => o.email === email);
+      container.innerHTML = '<div class="empty-orders" style="color:var(--text-muted);font-size:0.85rem;">Chargement...</div>';
+
+      let orders = [];
+      try {
+        orders = await DB.getOrdersByEmail(email);
+      } catch(e) {
+        orders = JSON.parse(localStorage.getItem(USER_KEYS.orders) || '[]').filter(o => o.email === email);
+      }
+      orders.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
       if (orders.length === 0) {
         container.innerHTML = '<div class="empty-orders">Aucune commande pour le moment.</div>';
         return;
       }
 
-      container.innerHTML = orders.reverse().map(o => `
+      container.innerHTML = orders.map(o => `
         <div class="order-item">
           <div class="order-icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>

@@ -195,7 +195,7 @@ function injectFooter() {
           <h4>Contact</h4>
           <ul>
             <li><a href="#">contact@holofoil.fr</a></li>
-            <li><a href="#">Support en ligne</a></li>
+            <li><a href="support.html">Support en ligne</a></li>
             <li><a href="#">FAQ</a></li>
           </ul>
         </div>
@@ -444,15 +444,18 @@ async function placeOrderLocal() {
     ts: Date.now(),
   };
 
-  // Sauvegarder via DB (Firestore ou localStorage)
+  // Toujours sauvegarder en localStorage (lecture synchrone par d'autres pages)
+  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+  orders.push(order);
+  localStorage.setItem('holofoil_orders', JSON.stringify(orders));
+
+  // + Firestore si disponible
   try {
-    await DB.addOrder(order);
+    if (typeof FIREBASE_READY !== 'undefined' && FIREBASE_READY) {
+      await db.collection('orders').add(order);
+    }
   } catch (e) {
-    console.error('[Holofoil] Erreur sauvegarde commande:', e);
-    // Fallback localStorage
-    const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
-    orders.push(order);
-    localStorage.setItem('holofoil_orders', JSON.stringify(orders));
+    console.warn('[Holofoil] Firestore addOrder failed:', e.message);
   }
 
   // Clear cart + promo
@@ -476,6 +479,63 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// ─── INJECT SUPPORT FLOATING BUTTON ───
+function injectSupportButton() {
+  // Ne pas afficher sur la page support elle-même ni sur l'admin
+  const page = window.location.pathname.split('/').pop() || '';
+  if (page === 'support.html' || page === 'admin.html') return;
+
+  const btn = document.createElement('a');
+  btn.href = 'support.html';
+  btn.id = 'supportFab';
+  btn.setAttribute('aria-label', 'Support en ligne');
+  btn.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></svg>
+    <span>Support</span>`;
+  document.body.appendChild(btn);
+
+  // Inject styles
+  const style = document.createElement('style');
+  style.textContent = `
+    #supportFab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, rgba(77,201,246,0.15), rgba(168,85,247,0.12));
+      border: 1px solid rgba(77,201,246,0.2);
+      backdrop-filter: blur(16px);
+      color: #4dc9f6;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: var(--font-body, 'Outfit', sans-serif);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 24px rgba(77,201,246,0.1), 0 0 0 0 rgba(77,201,246,0);
+    }
+    #supportFab:hover {
+      transform: translateY(-3px);
+      border-color: rgba(77,201,246,0.35);
+      box-shadow: 0 8px 32px rgba(77,201,246,0.2), 0 0 16px rgba(77,201,246,0.06);
+      background: linear-gradient(135deg, rgba(77,201,246,0.22), rgba(168,85,247,0.18));
+    }
+    #supportFab svg {
+      flex-shrink: 0;
+    }
+    @media (max-width: 480px) {
+      #supportFab span { display: none; }
+      #supportFab { padding: 14px; border-radius: 50%; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // ─── INIT ALL SHARED COMPONENTS ───
 function initComponents() {
   injectAmbientBg();
@@ -483,6 +543,7 @@ function initComponents() {
   injectGlobalSearch();
   injectToast();
   injectCartSidebar();
+  injectSupportButton();
 
   // Show logged-in indicator
   const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');

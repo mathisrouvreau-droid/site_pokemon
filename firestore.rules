@@ -20,6 +20,14 @@ service cloud.firestore {
       allow read: if request.auth != null && resource.data.email == request.auth.token.email;
     }
 
+    // Support tickets — lecture/écriture pour le propriétaire, tout pour admin
+    match /support_tickets/{doc} {
+      allow read: if request.auth != null && (resource.data.email == request.auth.token.email || isAdmin());
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (resource.data.email == request.auth.token.email || isAdmin());
+      allow delete: if isAdmin();
+    }
+
     // Users — lecture/écriture pour son propre profil
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
