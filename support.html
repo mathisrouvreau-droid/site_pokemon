@@ -505,19 +505,18 @@
         ]
       };
 
+      // Toujours sauvegarder en localStorage
+      const tickets = getLocalTickets();
+      tickets.unshift(ticket);
+      saveLocalTickets(tickets);
+
+      // + Firestore si disponible
       if (isFirebaseReady()) {
         try {
           await firebase.firestore().collection('support_tickets').add(ticket);
         } catch (e) {
           console.error('[Holofoil] Firestore createTicket error:', e);
-          const tickets = getLocalTickets();
-          tickets.unshift(ticket);
-          saveLocalTickets(tickets);
         }
-      } else {
-        const tickets = getLocalTickets();
-        tickets.unshift(ticket);
-        saveLocalTickets(tickets);
       }
 
       return ticket;
@@ -535,6 +534,16 @@
         ts: now
       };
 
+      // Toujours sauvegarder en localStorage
+      const tickets = getLocalTickets();
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (ticket) {
+        ticket.messages.push(msg);
+        ticket.updatedAt = now;
+        saveLocalTickets(tickets);
+      }
+
+      // + Firestore si disponible
       if (isFirebaseReady()) {
         try {
           const snap = await firebase.firestore().collection('support_tickets')
@@ -545,20 +554,10 @@
               messages: firebase.firestore.FieldValue.arrayUnion(msg),
               updatedAt: now
             });
-            return;
           }
         } catch (e) {
           console.error('[Holofoil] Firestore sendMessage error:', e);
         }
-      }
-
-      // localStorage fallback
-      const tickets = getLocalTickets();
-      const ticket = tickets.find(t => t.id === ticketId);
-      if (ticket) {
-        ticket.messages.push(msg);
-        ticket.updatedAt = now;
-        saveLocalTickets(tickets);
       }
     }
 

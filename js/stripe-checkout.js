@@ -57,6 +57,27 @@ async function startStripeCheckout() {
     return;
   }
 
+  // Vérifier les limites d'achat par compte
+  if (typeof window._shopListings !== 'undefined') {
+    const listings = Object.values(window._shopListings);
+    const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+    const userOrders = orders.filter(o => o.email === session.email);
+    for (const listing of listings) {
+      if (!listing || !listing.maxPerAccount || listing.maxPerAccount <= 0) continue;
+      let pastCount = 0;
+      userOrders.forEach(order => {
+        (order.details || []).forEach(item => {
+          if (item.name === listing.name) pastCount += (item.quantity || 1);
+        });
+      });
+      const inCart = cartItems.filter(item => item.name === listing.name).length;
+      if (pastCount + inCart > listing.maxPerAccount) {
+        showToast(`Limite dépassée pour ${listing.name} : max ${listing.maxPerAccount} par compte`);
+        return;
+      }
+    }
+  }
+
   // Récupérer les infos utilisateur
   const users = JSON.parse(localStorage.getItem('holofoil_users') || '[]');
   const user = users.find(u => u.email === session.email) || {};

@@ -136,7 +136,6 @@
   border-radius: var(--radius-lg);
   padding: 36px;
   position: relative;
-  overflow: hidden;
 }
 .glass-panel::before {
   content: '';
@@ -158,10 +157,13 @@
   display: flex;
   gap: 24px;
   overflow-x: auto;
-  padding-bottom: 20px;
+  padding: 20px 24px 30px;
+  margin: -20px -24px -10px;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
   scrollbar-color: rgba(77, 201, 246, 0.3) transparent;
+  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 .scroll-row::-webkit-scrollbar { height: 4px; }
 .scroll-row::-webkit-scrollbar-track { background: transparent; }
@@ -205,6 +207,7 @@
   transition: var(--transition);
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .filter-btn:hover,
 .filter-btn.active {

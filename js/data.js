@@ -153,8 +153,8 @@ function buildListingHTML(listing) {
   const objectFit = isCard ? 'contain' : 'cover';
 
   const origin = listing.origin || 'FR';
-  const originFlags = {'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'};
-  const flag = originFlags[origin] || '🇫🇷';
+  const originLabels = {'FR':'FR','JA':'JA','CN':'CN'};
+  const originLabel = originLabels[origin] || 'FR';
 
   // Store listing in global array with unique index
   window._shopListings[index] = listing;
@@ -163,8 +163,9 @@ function buildListingHTML(listing) {
     <div class="poke-card" data-set="${listing.set || ''}" data-rarity="${listing.rarity || ''}" data-price="${listing.price}" data-type="${type}" data-origin="${origin}" onclick="openListingDetail(${index})" style="cursor:pointer;">
       <div class="poke-card-img">
         ${type !== 'Carte' ? `<span class="card-badge hot" style="background:${typeColor};">${type}</span>` : ''}
+        ${listing.maxPerAccount > 0 ? `<span style="position:absolute;bottom:10px;right:10px;padding:4px 10px;border-radius:50px;font-size:0.6rem;font-weight:700;letter-spacing:0.05em;z-index:2;background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);">${listing.maxPerAccount} max/compte</span>` : ''}
         ${!isCard ? `<span style="position:absolute;bottom:10px;left:10px;padding:4px 10px;border-radius:50px;font-size:0.65rem;font-weight:700;letter-spacing:0.05em;z-index:2;${(listing.stockQty || 0) > 0 ? 'background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.25);' : 'background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.25);'}">${(listing.stockQty || 0) > 0 ? 'En stock' : 'Hors stock'}</span>` : ''}
-        <span style="position:absolute;top:10px;right:10px;font-size:1.1rem;z-index:2;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));">${flag}</span>
+        <span style="position:absolute;top:10px;right:10px;padding:3px 8px;border-radius:6px;font-size:0.6rem;font-weight:700;letter-spacing:0.08em;z-index:2;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,0.15);">${originLabel}</span>
         ${listing.image ? `<img src="${listing.image}" alt="${listing.name}" loading="lazy" style="width:100%;height:100%;object-fit:${objectFit};position:absolute;inset:0;">` : `
         <div class="card-visual">
           <div class="card-bg" style="background:linear-gradient(135deg,#2a2a3e,#1a1a2e)"></div>
@@ -180,7 +181,7 @@ function buildListingHTML(listing) {
         </div>
         <div class="poke-card-footer">
           <div class="poke-card-price">${parseFloat(listing.price).toFixed(2)}&nbsp;€</div>
-          ${!isCard && (listing.stockQty || 0) <= 0 ? `
+          ${listing.inStock === false || (!isCard && (listing.stockQty || 0) <= 0) ? `
           <button class="add-cart-btn" onclick="event.stopPropagation();toggleWishlist('${listing.name.replace(/'/g,"\\'")}');this.querySelector('svg').setAttribute('fill',isInWishlist('${listing.name.replace(/'/g,"\\'")}') ? '#ec4899' : 'none');this.style.borderColor=isInWishlist('${listing.name.replace(/'/g,"\\'")}') ? 'rgba(236,72,153,0.4)' : '';" title="Ajouter à la liste de souhaits" style="border-color:${isInWishlist(listing.name) ? 'rgba(236,72,153,0.4)' : ''};">
             <svg xmlns="http://www.w3.org/2000/svg" fill="${isInWishlist(listing.name) ? '#ec4899' : 'none'}" viewBox="0 0 24 24" stroke="#ec4899" stroke-width="2" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
           </button>` : `
@@ -192,6 +193,29 @@ function buildListingHTML(listing) {
     </div>`;
 }
 
+// ─── Count how many of a product the current user already bought + has in cart ───
+function getProductCountForUser(productName) {
+  const session = JSON.parse(localStorage.getItem('holofoil_user_session') || 'null');
+  if (!session) return 0;
+
+  // Count in past orders
+  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+  let purchased = 0;
+  orders.filter(o => o.email === session.email).forEach(order => {
+    (order.details || []).forEach(item => {
+      if (item.name === productName) {
+        purchased += (item.quantity || 1);
+      }
+    });
+  });
+
+  // Count in current cart
+  const cartItems = JSON.parse(localStorage.getItem('holofoil_cart') || '[]');
+  const inCart = cartItems.filter(item => item.name === productName).length;
+
+  return purchased + inCart;
+}
+
 // Modal quantity state
 window._modalQty = 1;
 
@@ -199,7 +223,15 @@ function changeModalQty(delta, index) {
   const listing = window._shopListings[index];
   if (!listing) return;
   const type = listing.type || 'Carte';
-  const maxQty = type === 'Carte' ? 1 : (listing.stockQty || 1);
+  let maxQty = type === 'Carte' ? 1 : (listing.stockQty || 1);
+
+  // Apply per-account limit
+  if (listing.maxPerAccount > 0) {
+    const alreadyOwned = getProductCountForUser(listing.name);
+    const remaining = Math.max(0, listing.maxPerAccount - alreadyOwned);
+    maxQty = Math.min(maxQty, remaining);
+  }
+
   window._modalQty = Math.max(1, Math.min(maxQty, window._modalQty + delta));
 
   const qtyEl = document.getElementById('modalQtyValue');
@@ -218,6 +250,24 @@ function changeModalQty(delta, index) {
 function addListingToCartQty(index) {
   const listing = window._shopListings[index];
   if (!listing) return;
+
+  // Check out of stock
+  if (listing.inStock === false || ((listing.type || 'Carte') !== 'Carte' && (listing.stockQty || 0) <= 0)) {
+    showToast(`${listing.name} est hors stock`);
+    return;
+  }
+
+  // Check per-account limit
+  if (listing.maxPerAccount > 0) {
+    const alreadyOwned = getProductCountForUser(listing.name);
+    const remaining = listing.maxPerAccount - alreadyOwned;
+    if (remaining <= 0) {
+      showToast(`Limite atteinte : ${listing.maxPerAccount} max par compte pour ${listing.name}`);
+      window._modalQty = 1;
+      return;
+    }
+  }
+
   const qty = window._modalQty || 1;
   for (let i = 0; i < qty; i++) {
     cart.push({
@@ -238,6 +288,22 @@ function addListingToCartQty(index) {
 function addListingToCart(index) {
   const listing = window._shopListings[index];
   if (!listing) return;
+
+  // Check out of stock
+  if (listing.inStock === false || ((listing.type || 'Carte') !== 'Carte' && (listing.stockQty || 0) <= 0)) {
+    showToast(`${listing.name} est hors stock`);
+    return;
+  }
+
+  // Check per-account limit
+  if (listing.maxPerAccount > 0) {
+    const alreadyOwned = getProductCountForUser(listing.name);
+    if (alreadyOwned >= listing.maxPerAccount) {
+      showToast(`Limite atteinte : ${listing.maxPerAccount} max par compte pour ${listing.name}`);
+      return;
+    }
+  }
+
   cart.push({
     id: 'listing-' + index + '-' + Date.now(),
     name: listing.name,
@@ -358,7 +424,7 @@ function openListingDetail(index) {
         <!-- Badges -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
           <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);color:${typeColor};">${type}</span>
-          <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">${{'FR':'🇫🇷 Française','EN':'🇬🇧 Anglaise','JA':'🇯🇵 Japonaise','KO':'🇰🇷 Coréenne','DE':'🇩🇪 Allemande','ES':'🇪🇸 Espagnole','IT':'🇮🇹 Italienne','PT':'🇧🇷 Portugaise','CN':'🇨🇳 Chinoise','TW':'🇹🇼 Taïwanaise'}[listing.origin] || '🇫🇷 Française'}</span>
+          <span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">${{'FR':'Française','JA':'Japonaise','CN':'Chinoise'}[listing.origin] || 'Française'}</span>
           ${type === 'Carte' ? `<span class="condition-badge condition-${cc}" style="font-size:0.7rem;">${listing.condition}</span>` : ''}
           ${type === 'Carte' && listing.rarity ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:600;background:rgba(168,85,247,0.1);color:#a855f7;">${listing.rarity}</span>` : ''}
           ${type !== 'Carte' ? `<span style="padding:4px 12px;border-radius:50px;font-size:0.7rem;font-weight:700;letter-spacing:0.05em;${(listing.stockQty || 0) > 0 ? 'background:rgba(74,222,128,0.12);color:#4ade80;border:1px solid rgba(74,222,128,0.2);' : 'background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'}">${(listing.stockQty || 0) > 0 ? (listing.stockQty + ' en stock') : 'Hors stock'}</span>` : ''}
@@ -371,52 +437,43 @@ function openListingDetail(index) {
 
         <!-- Description -->
         ${listing.description ? `
-          <div style="margin-bottom:24px;">
-            <h4 style="font-size:0.8rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Description</h4>
-            <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap;">${(listing.description || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+          <div style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:12px;">
+            <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap;margin:0;">${(listing.description || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
           </div>
         ` : ''}
 
-        <!-- Details -->
-        <div style="margin-bottom:28px;">
-          <h4 style="font-size:0.8rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;">Détails</h4>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
-              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Type</div>
-              <div style="font-size:0.85rem;font-weight:600;">${type}</div>
-            </div>
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
-              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Langue</div>
-              <div style="font-size:0.85rem;font-weight:600;">${{'FR':'🇫🇷 Française','EN':'🇬🇧 Anglaise','JA':'🇯🇵 Japonaise','KO':'🇰🇷 Coréenne','DE':'🇩🇪 Allemande','ES':'🇪🇸 Espagnole','IT':'🇮🇹 Italienne','PT':'🇧🇷 Portugaise','CN':'🇨🇳 Chinoise','TW':'🇹🇼 Taïwanaise'}[listing.origin] || '🇫🇷 Française'}</div>
-            </div>
-            ${type === 'Carte' ? `
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
-              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">État</div>
-              <div style="font-size:0.85rem;font-weight:600;">${listing.condition}</div>
-            </div>` : ''}
-            ${listing.set ? `
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
-              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Extension</div>
-              <div style="font-size:0.85rem;font-weight:600;">${listing.set}</div>
-            </div>` : ''}
-            ${type === 'Carte' && listing.rarity ? `
-            <div style="padding:12px 16px;background:rgba(255,255,255,0.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
-              <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:2px;">Rareté</div>
-              <div style="font-size:0.85rem;font-weight:600;">${listing.rarity}</div>
-            </div>` : ''}
-          </div>
-        </div>
-
         <!-- Quantity + Add to cart -->
-        ${(type !== 'Carte' && (listing.stockQty || 0) <= 0) ? `
+        ${(() => {
+          const limitReached = listing.maxPerAccount > 0 && getProductCountForUser(listing.name) >= listing.maxPerAccount;
+          const alreadyOwned = listing.maxPerAccount > 0 ? getProductCountForUser(listing.name) : 0;
+          const remaining = listing.maxPerAccount > 0 ? Math.max(0, listing.maxPerAccount - alreadyOwned) : Infinity;
+
+          const _isCard = (type === 'Carte');
+          const outOfStock = listing.inStock === false || (!_isCard && (listing.stockQty || 0) <= 0);
+          if (outOfStock) return `
         <div style="margin-bottom:12px;">
           <button onclick="event.stopPropagation();toggleWishlist('${listing.name.replace(/'/g,"\\'")}')" id="modalWishBtn" style="width:100%;padding:16px;border-radius:12px;font-size:0.95rem;font-weight:600;border:1px solid rgba(236,72,153,0.2);cursor:pointer;transition:0.3s ease;display:flex;align-items:center;justify-content:center;gap:10px;${isInWishlist(listing.name) ? 'background:rgba(236,72,153,0.12);color:#ec4899;' : 'background:rgba(255,255,255,0.04);color:var(--text-secondary);'}" onmouseover="this.style.borderColor='rgba(236,72,153,0.35)'" onmouseout="this.style.borderColor='rgba(236,72,153,0.2)'">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="${isInWishlist(listing.name) ? '#ec4899' : 'none'}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
             ${isInWishlist(listing.name) ? 'Dans votre liste de souhaits' : 'Ajouter à ma liste de souhaits'}
           </button>
         </div>
-        <p style="font-size:0.78rem;color:var(--text-muted);text-align:center;">Vous serez notifié par email dès que ce produit sera de retour en stock.</p>
-        ` : `
+        <p style="font-size:0.78rem;color:var(--text-muted);text-align:center;">Vous serez notifié par email dès que ce produit sera de retour en stock.</p>`;
+
+          if (limitReached) return `
+        ${listing.maxPerAccount > 0 ? `<div style="padding:10px 14px;border-radius:10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+          <span style="font-size:0.8rem;color:#f59e0b;font-weight:600;">Limite atteinte (${listing.maxPerAccount} par compte)</span>
+        </div>` : ''}
+        <button disabled style="width:100%;padding:16px;border-radius:12px;font-size:1rem;font-weight:600;background:rgba(255,255,255,0.05);color:var(--text-muted);border:1px solid rgba(255,255,255,0.08);cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:10px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          Limite d'achat atteinte
+        </button>`;
+
+          return `
+        ${listing.maxPerAccount > 0 ? `<div style="padding:10px 14px;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+          <span style="font-size:0.78rem;color:#f59e0b;">Limité à ${listing.maxPerAccount} par compte — il vous en reste ${remaining}</span>
+        </div>` : ''}
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
           <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);">Quantité</span>
           <div style="display:flex;align-items:center;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.03);">
@@ -429,7 +486,8 @@ function openListingDetail(index) {
         <button id="modalAddCartBtn" onclick="event.stopPropagation();addListingToCartQty(${index});document.getElementById('listingModal').remove();" style="width:100%;padding:16px;border-radius:12px;font-size:1rem;font-weight:600;background:linear-gradient(135deg,#4dc9f6,#7c3aed);color:#fff;border:none;cursor:pointer;transition:0.3s ease;display:flex;align-items:center;justify-content:center;gap:10px;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(77,201,246,0.25)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
           Ajouter au panier
-        </button>`}
+        </button>`;
+        })()}
       </div>
     </div>
   `;

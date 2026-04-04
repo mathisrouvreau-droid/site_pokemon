@@ -90,9 +90,9 @@
           <div class="sub-filter-bar" id="cardsFilterBar">
             <select class="filter-select" id="cardsSetLangFilter">
               <option value="all">Toutes les langues</option>
-              <option value="fr">🇫🇷 Française</option>
-              <option value="ja">🇯🇵 Japonaise</option>
-              <option value="zh">🇨🇳 Chinoise</option>
+              <option value="fr">Française</option>
+              <option value="ja">Japonaise</option>
+              <option value="zh">Chinoise</option>
             </select>
             <select class="filter-select" id="cardsSetFilter"><option value="all">Tous les sets</option></select>
             <select class="filter-select" id="cardsRarityFilter"><option value="all">Toutes raretés</option></select>
@@ -143,9 +143,9 @@
           <div class="sub-filter-bar" id="sealedFilterBar">
             <select class="filter-select" id="sealedSetLangFilter">
               <option value="all">Toutes les langues</option>
-              <option value="fr">🇫🇷 Française</option>
-              <option value="ja">🇯🇵 Japonaise</option>
-              <option value="zh">🇨🇳 Chinoise</option>
+              <option value="fr">Française</option>
+              <option value="ja">Japonaise</option>
+              <option value="zh">Chinoise</option>
             </select>
             <select class="filter-select" id="sealedSetFilter"><option value="all">Tous les sets</option></select>
             <select class="filter-select" id="sealedSortFilter">
@@ -531,7 +531,7 @@
         fetchSetsForLang('zh-tw')
       ]);
 
-      // Sets internationaux (FR)
+      // Sets FR
       if (frSets && frSets.length) {
         frSets.reverse().forEach(s => {
           if (s.name && !TCGP_IDS.includes(s.id)) setsByLang.fr.push(s.name);
@@ -552,7 +552,7 @@
         });
       }
 
-      // Dédupliquer (les APIs JA et ZH-TW ont parfois des doublons)
+      // Dédupliquer
       setsByLang.ja = [...new Set(setsByLang.ja)];
       setsByLang.zh = [...new Set(setsByLang.zh)];
 
@@ -634,9 +634,9 @@
       // Ajouter les optgroups si toutes langues
       if (langVal === 'all') {
         const groups = [
-          { key: 'fr', label: '🇫🇷 Française' },
-          { key: 'ja', label: '🇯🇵 Japonaise' },
-          { key: 'zh', label: '🇨🇳 Chinoise' }
+          { key: 'fr', label: 'Française' },
+          { key: 'ja', label: 'Japonaise' },
+          { key: 'zh', label: 'Chinoise' }
         ];
         groups.forEach(g => {
           const groupSets = setsToShow.filter(s => s.group === g.key);
@@ -741,7 +741,7 @@
 
     // Mapping langue du set → origins correspondantes
     const LANG_TO_ORIGINS = {
-      'fr': ['FR', 'EN', 'DE', 'ES', 'IT', 'PT', 'KO'],
+      'fr': ['FR'],
       'ja': ['JA'],
       'zh': ['CN', 'TW']
     };

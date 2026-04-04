@@ -45,6 +45,40 @@ function removeFromCart(index) {
   renderCartItems();
 }
 
+function removeCartGroup(name) {
+  for (let i = cart.length - 1; i >= 0; i--) {
+    if (cart[i].name === name) cart.splice(i, 1);
+  }
+  saveCart();
+  updateCartCount();
+  renderCartItems();
+}
+
+function updateCartQty(name, newQty) {
+  if (newQty <= 0) {
+    removeCartGroup(name);
+    return;
+  }
+  const currentCount = cart.filter(c => c.name === name).length;
+  if (newQty > currentCount) {
+    // Add copies
+    const ref = cart.find(c => c.name === name);
+    if (!ref) return;
+    for (let i = 0; i < newQty - currentCount; i++) {
+      cart.push({ id: ref.name + '-' + Date.now() + '-' + i, name: ref.name, set: ref.set, price: ref.price, image: ref.image });
+    }
+  } else if (newQty < currentCount) {
+    // Remove from the end
+    let toRemove = currentCount - newQty;
+    for (let i = cart.length - 1; i >= 0 && toRemove > 0; i--) {
+      if (cart[i].name === name) { cart.splice(i, 1); toRemove--; }
+    }
+  }
+  saveCart();
+  updateCartCount();
+  renderCartItems();
+}
+
 function saveCart() {
   localStorage.setItem('holofoil_cart', JSON.stringify(cart));
 }
@@ -88,18 +122,41 @@ function renderCartItems() {
     return;
   }
 
-  container.innerHTML = cart.map((item, i) => `
+  // Group identical items by name
+  const grouped = [];
+  const seen = {};
+  cart.forEach((item, i) => {
+    const key = item.name;
+    if (seen[key] !== undefined) {
+      grouped[seen[key]].qty++;
+      grouped[seen[key]].indices.push(i);
+    } else {
+      seen[key] = grouped.length;
+      grouped.push({ ...item, qty: 1, indices: [i] });
+    }
+  });
+
+  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  container.innerHTML = grouped.map((item, gi) => `
     <div class="cart-item">
       ${item.image
         ? `<img src="${item.image}" alt="" class="cart-item-color" style="object-fit:contain;border-radius:8px;">`
         : `<div class="cart-item-color" style="background:var(--bg-elevated);border-radius:8px;"></div>`
       }
       <div class="cart-item-info">
-        <div class="cart-item-name">${item.name}</div>
-        <div class="cart-item-set">${item.set || ''}</div>
+        <div class="cart-item-name">${esc(item.name)}</div>
+        <div class="cart-item-set">${esc(item.set)}</div>
+        ${item.qty > 1 ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${(item.price || 0).toFixed(2)} € / unité</div>` : ''}
       </div>
-      <div class="cart-item-price">${(item.price || 0).toFixed(2)}&nbsp;€</div>
-      <button class="cart-item-remove" onclick="removeFromCart(${i})" title="Retirer">✕</button>
+      ${item.qty > 1 ? `
+      <div style="display:flex;align-items:center;border:1px solid rgba(255,255,255,0.08);border-radius:8px;overflow:hidden;background:rgba(255,255,255,0.03);margin-right:12px;flex-shrink:0;">
+        <button onclick="updateCartQty('${item.name.replace(/'/g,"\\'")}',${item.qty - 1})" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:0.9rem;">−</button>
+        <span style="min-width:24px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:0.8rem;">${item.qty}</span>
+        <button onclick="updateCartQty('${item.name.replace(/'/g,"\\'")}',${item.qty + 1})" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:0.9rem;">+</button>
+      </div>` : ''}
+      <div class="cart-item-price">${((item.price || 0) * item.qty).toFixed(2)}&nbsp;€</div>
+      <button class="cart-item-remove" onclick="removeCartGroup('${item.name.replace(/'/g,"\\'")}')" title="Retirer">✕</button>
     </div>
   `).join('');
 
@@ -139,7 +196,7 @@ function applyPromoCode() {
   if (!code) { status.innerHTML = ''; return; }
 
   const codes = getPromoCodes();
-  const match = codes.find(c => c.code.toUpperCase() === code && c.active !== false);
+  const match = codes.find(c => c.code?.toUpperCase() === code && c.active !== false);
 
   if (match) {
     appliedPromo = { code: match.code, percent: match.percent };

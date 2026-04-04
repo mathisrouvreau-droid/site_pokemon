@@ -296,6 +296,7 @@ function toggleGlobalSearch() {
   } else {
     overlay.classList.add('open');
     const input = document.getElementById('globalSearchInput');
+    if (!input) return;
     input.value = '';
     input.focus();
     document.getElementById('globalSearchResults').innerHTML = '<div class="search-empty">Tapez pour rechercher parmi tous les produits disponibles</div>';
@@ -340,7 +341,7 @@ function performGlobalSearch(query) {
 
   // Show max 8 results
   const typeColors = { 'Carte':'var(--holo-1)', 'Booster':'#f97316', 'ETB':'#a855f7', 'Coffret':'#22d3ee', 'Display':'#ec4899', 'Bundle':'#4ade80', 'Autre':'var(--text-muted)' };
-  const originFlags = {'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'};
+  const originFlags = {'FR':'FR','JA':'JA','CN':'CN'};
 
   // Store matched results globally for onclick
   window._searchResults = matched.slice(0, 8);
@@ -349,7 +350,7 @@ function performGlobalSearch(query) {
     const type = l.type || 'Carte';
     const isCard = type === 'Carte';
     const typeColor = typeColors[type] || 'var(--text-muted)';
-    const flag = originFlags[l.origin] || '🇫🇷';
+    const flag = originFlags[l.origin] || 'FR';
     const stockBadge = !isCard ? ((l.stockQty || 0) > 0
       ? '<span style="font-size:0.65rem;font-weight:600;color:#4ade80;">En stock</span>'
       : '<span style="font-size:0.65rem;font-weight:600;color:#ef4444;">Hors stock</span>') : '';
@@ -411,6 +412,27 @@ async function placeOrderLocal() {
 
   const cartItems = JSON.parse(localStorage.getItem('holofoil_cart') || '[]');
   if (cartItems.length === 0) { showToast('Votre panier est vide'); return; }
+
+  // Vérifier les limites d'achat par compte
+  if (typeof window._shopListings !== 'undefined') {
+    const listings = Object.values(window._shopListings);
+    const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+    const userOrders = orders.filter(o => o.email === session.email);
+    for (const listing of listings) {
+      if (!listing || !listing.maxPerAccount || listing.maxPerAccount <= 0) continue;
+      let pastCount = 0;
+      userOrders.forEach(order => {
+        (order.details || []).forEach(item => {
+          if (item.name === listing.name) pastCount += (item.quantity || 1);
+        });
+      });
+      const inCart = cartItems.filter(item => item.name === listing.name).length;
+      if (pastCount + inCart > listing.maxPerAccount) {
+        showToast(`Limite dépassée pour ${listing.name} : max ${listing.maxPerAccount} par compte`);
+        return;
+      }
+    }
+  }
 
   const subtotal = cartItems.reduce((s, i) => s + (i.price || 0), 0);
   const promo = (typeof appliedPromo !== 'undefined' && appliedPromo) ? appliedPromo : null;

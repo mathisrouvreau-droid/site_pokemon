@@ -249,6 +249,7 @@
   inset: 0;
   background: rgba(0,0,0,0.6);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 5000;
   display: flex;
   align-items: center;
@@ -411,6 +412,23 @@
   color: var(--text-primary);
   margin-bottom: 8px;
 }
+/* Global form-input for admin pages (outside .admin-form too) */
+.form-input {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: var(--transition);
+}
+.form-input:focus {
+  border-color: var(--holo-1);
+  box-shadow: 0 0 0 3px rgba(77, 201, 246, 0.1);
+}
+.form-input::placeholder { color: var(--text-muted); }
+
 .admin-form .form-input,
 .admin-form .form-select {
   width: 100%;

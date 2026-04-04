@@ -167,7 +167,7 @@ function renderAnalyseTab(main) {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
         ${st.results.map(c => {
           const lang = c._lang || '';
-          const langBadge = lang === 'ja' ? '<span style="position:absolute;top:2px;right:2px;font-size:0.55rem;background:rgba(0,0,0,0.6);color:#fff;padding:1px 4px;border-radius:3px;">🇯🇵</span>' : lang === 'fr' ? '<span style="position:absolute;top:2px;right:2px;font-size:0.55rem;background:rgba(0,0,0,0.6);color:#fff;padding:1px 4px;border-radius:3px;">🇫🇷</span>' : '';
+          const langBadge = lang === 'ja' ? '<span style="position:absolute;top:2px;right:2px;font-size:0.55rem;background:rgba(0,0,0,0.6);color:#fff;padding:1px 4px;border-radius:3px;">JA</span>' : lang === 'fr' ? '<span style="position:absolute;top:2px;right:2px;font-size:0.55rem;background:rgba(0,0,0,0.6);color:#fff;padding:1px 4px;border-radius:3px;">FR</span>' : '';
           const hasImg = c.image;
           return `
           <div onclick="selectAnalyseCard('${c.id}','${lang}')" style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:0.2s;display:flex;align-items:center;gap:10px;" onmouseover="this.style.borderColor='var(--holo-1)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -1616,6 +1616,7 @@ function renderCardsTab(container) {
               <th>Origine</th>
               <th>État</th>
               <th>Stock</th>
+              <th>Limite/compte</th>
               <th>Prix</th>
               <th>Date</th>
               <th>Actions</th>
@@ -1638,9 +1639,10 @@ function renderCardsTab(container) {
                   </div>
                 </td>
                 <td><span style="font-size:0.75rem;font-weight:600;color:${typeColor};">${typeLabel}</span></td>
-                <td><span style="font-size:0.8rem;">${{'FR':'🇫🇷','EN':'🇬🇧','JA':'🇯🇵','KO':'🇰🇷','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','PT':'🇧🇷','CN':'🇨🇳','TW':'🇹🇼'}[l.origin] || '🇫🇷'}</span></td>
+                <td><span style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);">${l.origin || 'FR'}</span></td>
                 <td><span class="condition-badge condition-${l.conditionClass || 'nm'}">${l.condition}</span></td>
-                <td>${(l.type || 'Carte') !== 'Carte' ? `<span style="font-size:0.75rem;font-weight:600;color:${(l.stockQty || 0) > 0 ? '#4ade80' : '#ef4444'};">${(l.stockQty || 0) > 0 ? (l.stockQty + ' en stock') : 'Hors stock'}</span>` : '<span style="font-size:0.75rem;color:var(--text-muted);">1</span>'}</td>
+                <td>${(l.type || 'Carte') !== 'Carte' ? `<span style="font-size:0.75rem;font-weight:600;color:${(l.stockQty || 0) > 0 ? '#4ade80' : '#ef4444'};">${(l.stockQty || 0) > 0 ? (l.stockQty + ' en stock') : 'Hors stock'}</span>` : `<span style="font-size:0.75rem;font-weight:600;color:${l.inStock !== false ? '#4ade80' : '#ef4444'};">${l.inStock !== false ? 'En stock' : 'Hors stock'}</span>`}</td>
+                <td>${l.maxPerAccount ? `<span style="font-size:0.75rem;font-weight:600;color:#f59e0b;">${l.maxPerAccount} max</span>` : '<span style="font-size:0.75rem;color:var(--text-muted);">—</span>'}</td>
                 <td><strong>${parseFloat(l.price).toFixed(2)} €</strong></td>
                 <td style="font-size:0.8rem;color:var(--text-muted);">${l.date || '—'}</td>
                 <td>
@@ -1757,24 +1759,23 @@ function openCardModal(index = null) {
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Set / Extension</label>
-            <input type="text" class="form-input" id="modalCardSet" placeholder="Ex: Écarlate & Violet" value="${listing?.set || ''}">
-          </div>
-          <div class="form-group">
             <label class="form-label">Provenance</label>
-            <select class="form-select" id="modalCardOrigin">
-              <option value="FR" ${(!listing || listing.origin === 'FR') ? 'selected' : ''}>🇫🇷 Française</option>
-              <option value="EN" ${listing?.origin === 'EN' ? 'selected' : ''}>🇬🇧 Anglaise</option>
-              <option value="JA" ${listing?.origin === 'JA' ? 'selected' : ''}>🇯🇵 Japonaise</option>
-              <option value="KO" ${listing?.origin === 'KO' ? 'selected' : ''}>🇰🇷 Coréenne</option>
-              <option value="DE" ${listing?.origin === 'DE' ? 'selected' : ''}>🇩🇪 Allemande</option>
-              <option value="ES" ${listing?.origin === 'ES' ? 'selected' : ''}>🇪🇸 Espagnole</option>
-              <option value="IT" ${listing?.origin === 'IT' ? 'selected' : ''}>🇮🇹 Italienne</option>
-              <option value="PT" ${listing?.origin === 'PT' ? 'selected' : ''}>🇧🇷 Portugaise</option>
-              <option value="CN" ${listing?.origin === 'CN' ? 'selected' : ''}>🇨🇳 Chinoise</option>
-              <option value="TW" ${listing?.origin === 'TW' ? 'selected' : ''}>🇹🇼 Taïwanaise</option>
+            <select class="form-select" id="modalCardOrigin" onchange="loadSetsForOrigin()">
+              <option value="FR" ${(!listing || listing.origin === 'FR') ? 'selected' : ''}>Française</option>
+              <option value="JA" ${listing?.origin === 'JA' ? 'selected' : ''}>Japonaise</option>
+              <option value="CN" ${listing?.origin === 'CN' ? 'selected' : ''}>Chinoise</option>
             </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Set / Extension</label>
+          <select class="form-select" id="modalCardSetSelect" onchange="onSetSelectChange()">
+            <option value="">— Choisir un set —</option>
+            <option value="__custom">Saisie libre...</option>
+          </select>
+          <input type="text" class="form-input" id="modalCardSetCustom" placeholder="Nom du set personnalisé..." style="display:none;margin-top:8px;" value="">
+          <input type="hidden" id="modalCardSet" value="${listing?.set || ''}">
+          <p style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Choisir un set de l'API pour correspondre aux filtres de la boutique.</p>
         </div>
         <div class="form-group" id="rarityGroup">
           <label class="form-label">Rareté</label>
@@ -1784,6 +1785,22 @@ function openCardModal(index = null) {
           <label class="form-label">Quantité en stock</label>
           <input type="number" class="form-input" id="modalStockQty" placeholder="Ex: 5" min="0" step="1" value="${listing?.stockQty != null ? listing.stockQty : 1}" style="max-width:160px;">
           <p style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">0 = Hors stock</p>
+        </div>
+        <div class="form-group" id="cardStockGroup" style="display:none;">
+          <label class="form-label" style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+            <span style="position:relative;display:inline-block;width:44px;height:24px;">
+              <input type="checkbox" id="modalCardInStock" ${(!listing || listing.inStock !== false) ? 'checked' : ''} style="opacity:0;width:0;height:0;position:absolute;" onchange="this.parentElement.querySelector('.toggle-track').style.background=this.checked?'rgba(77,201,246,0.4)':'rgba(255,255,255,0.08)';this.parentElement.querySelector('.toggle-thumb').style.transform=this.checked?'translateX(20px)':'translateX(0)'">
+              <span class="toggle-track" style="position:absolute;inset:0;border-radius:12px;background:${(!listing || listing.inStock !== false) ? 'rgba(77,201,246,0.4)' : 'rgba(255,255,255,0.08)'};border:1px solid rgba(255,255,255,0.1);transition:0.2s;"></span>
+              <span class="toggle-thumb" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);transition:0.2s;transform:${(!listing || listing.inStock !== false) ? 'translateX(20px)' : 'translateX(0)'};"></span>
+            </span>
+            En stock
+          </label>
+          <p style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Désactiver pour marquer la carte comme hors stock (invisible à la vente).</p>
+        </div>
+        <div class="form-group" id="maxPerAccountGroup">
+          <label class="form-label">Limite d'achat par compte</label>
+          <input type="number" class="form-input" id="modalMaxPerAccount" placeholder="Illimité" min="0" step="1" value="${listing?.maxPerAccount || ''}" style="max-width:160px;">
+          <p style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Nombre maximum d'achats par compte. Laisser vide ou 0 = illimité.</p>
         </div>
         <div class="form-group" id="descriptionGroup">
           <label class="form-label">Description</label>
@@ -1804,6 +1821,9 @@ function openCardModal(index = null) {
 
   // Configure form based on product type
   onProductTypeChange();
+
+  // Load sets for the current origin
+  loadSetsForOrigin();
 
   // If editing, restore state
   if (listing?.apiId) {
@@ -1832,6 +1852,84 @@ function switchModalTab(tab) {
   document.getElementById('tabCustom')?.classList.toggle('active', tab === 'custom');
 }
 
+// ─── Sets loader for admin modal ───
+const _setsCache = {};
+
+async function loadSetsForOrigin() {
+  const origin = document.getElementById('modalCardOrigin')?.value || 'FR';
+  const sel = document.getElementById('modalCardSetSelect');
+  const hiddenInput = document.getElementById('modalCardSet');
+  if (!sel) return;
+
+  // Map origin to TCGdex lang code
+  const langMap = { FR:'fr', EN:'en', JA:'ja', KO:'ko', DE:'de', ES:'es', IT:'it', PT:'pt', CN:'zh-tw', TW:'zh-tw' };
+  const lang = langMap[origin] || 'fr';
+
+  // Keep current value
+  const currentVal = hiddenInput?.value || '';
+
+  sel.innerHTML = '<option value="">— Chargement... —</option>';
+
+  let sets = _setsCache[lang];
+  if (!sets) {
+    try {
+      const res = await fetch(`https://api.tcgdex.net/v2/${lang}/sets`);
+      if (res.ok) sets = await res.json();
+    } catch(e) {}
+    if (!sets) sets = [];
+    // Sort most recent first (reverse)
+    sets.reverse();
+    _setsCache[lang] = sets;
+  }
+
+  sel.innerHTML = '<option value="">— Choisir un set —</option>';
+  sets.forEach(s => {
+    if (!s.name) return;
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.textContent = s.name;
+    if (s.name === currentVal) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  // Add custom option at the end
+  const customOpt = document.createElement('option');
+  customOpt.value = '__custom';
+  customOpt.textContent = 'Saisie libre...';
+  sel.appendChild(customOpt);
+
+  // If current value is not in the list, switch to custom
+  const customInput = document.getElementById('modalCardSetCustom');
+  if (currentVal && !sets.some(s => s.name === currentVal)) {
+    sel.value = '__custom';
+    if (customInput) {
+      customInput.style.display = '';
+      customInput.value = currentVal;
+    }
+  } else {
+    if (customInput) customInput.style.display = 'none';
+  }
+}
+
+function onSetSelectChange() {
+  const sel = document.getElementById('modalCardSetSelect');
+  const customInput = document.getElementById('modalCardSetCustom');
+  const hiddenInput = document.getElementById('modalCardSet');
+  if (!sel) return;
+
+  if (sel.value === '__custom') {
+    if (customInput) {
+      customInput.style.display = '';
+      customInput.focus();
+      customInput.oninput = () => { if (hiddenInput) hiddenInput.value = customInput.value.trim(); };
+    }
+    if (hiddenInput) hiddenInput.value = customInput?.value.trim() || '';
+  } else {
+    if (customInput) customInput.style.display = 'none';
+    if (hiddenInput) hiddenInput.value = sel.value;
+  }
+}
+
 // ─── Product type change: adapt form fields ───
 function onProductTypeChange() {
   const type = document.getElementById('modalProductType').value;
@@ -1843,21 +1941,25 @@ function onProductTypeChange() {
   const customSection = document.getElementById('modalCustomSection');
   const customLabel = document.getElementById('customUploadLabel');
 
+  const cardStockGroup = document.getElementById('cardStockGroup');
+
   if (isCard) {
     // Cards: show API search + photo upload both visible
-    imageTabs.style.display = 'none'; // hide tabs, both sections always visible
+    imageTabs.style.display = 'none';
     apiSection.style.display = '';
     customSection.style.display = '';
     rarityGroup.style.display = '';
     stockGroup.style.display = 'none';
+    if (cardStockGroup) cardStockGroup.style.display = '';
     if (customLabel) customLabel.textContent = 'Photos de la carte (état réel)';
   } else {
-    // Sealed products: only custom upload + stock toggle
+    // Sealed products: only custom upload + stock qty
     imageTabs.style.display = 'none';
     apiSection.style.display = 'none';
     customSection.style.display = '';
     rarityGroup.style.display = 'none';
     stockGroup.style.display = '';
+    if (cardStockGroup) cardStockGroup.style.display = 'none';
     if (customLabel) customLabel.textContent = 'Photo du produit';
   }
 
@@ -2078,13 +2180,13 @@ async function searchApi() {
   let html = '';
 
   if (frEnCards.length > 0) {
-    html += `<p style="font-size:0.7rem;font-weight:600;color:var(--holo-1);padding:4px;grid-column:1/-1;margin-bottom:4px;">🇫🇷 Cartes FR / EN (${frEnCards.length})</p>`;
+    html += `<p style="font-size:0.7rem;font-weight:600;color:var(--holo-1);padding:4px;grid-column:1/-1;margin-bottom:4px;">FR Cartes FR / EN (${frEnCards.length})</p>`;
     html += frEnCards.map(c => {
       const img = c.image ? `${c.image}/low.webp` : '';
       const setName = c.set?.name || '';
       const rarity = c.rarity || '';
       const safeId = (c.id || '').replace(/'/g, "\\'");
-      const langFlag = c._lang === 'en' ? '🇬🇧' : '🇫🇷';
+      const langFlag = c._lang === 'en' ? 'EN' : 'FR';
 
       return `
         <div class="api-result-card" data-id="${c.id}" onclick="selectApiCard(this, '${safeId}', '${c._lang || 'fr'}')">
@@ -2097,7 +2199,7 @@ async function searchApi() {
   }
 
   if (jaOnlyCards.length > 0) {
-    html += `<p style="font-size:0.7rem;font-weight:600;color:#ef4444;padding:4px;grid-column:1/-1;margin-top:12px;margin-bottom:4px;">🇯🇵 Cartes Japonaises (${jaOnlyCards.length})</p>`;
+    html += `<p style="font-size:0.7rem;font-weight:600;color:#ef4444;padding:4px;grid-column:1/-1;margin-top:12px;margin-bottom:4px;">JA Cartes Japonaises (${jaOnlyCards.length})</p>`;
     html += jaOnlyCards.map(c => {
       const img = c.image ? `${c.image}/low.webp` : '';
       const setName = c.set?.name || '';
@@ -2108,7 +2210,7 @@ async function searchApi() {
       return `
         <div class="api-result-card" data-id="${realId}" onclick="selectApiCard(this, '${safeId}', 'ja')" style="border-color:rgba(239,68,68,0.15);">
           ${img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div style="aspect-ratio:63/88;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);padding:4px;text-align:center;">${c.name || '?'}</div>`}
-          <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">🇯🇵</span></div>
+          <div class="name">${c.name || '?'} <span style="font-size:0.6rem;">JA</span></div>
           <div class="api-card-meta">${setName}${rarity ? ' · ' + rarity : ''}</div>
           <div class="check">✓</div>
         </div>`;
@@ -2174,6 +2276,8 @@ async function selectApiCard(el, id, sourceLang = 'fr') {
   if (originSelect && sourceLang && originMap[sourceLang]) {
     originSelect.value = originMap[sourceLang];
   }
+  // Reload sets dropdown for the new origin and select the right set
+  loadSetsForOrigin();
 
   // Show selected card detail preview
   const previewEl = document.getElementById('selectedCardPreview');
@@ -2296,13 +2400,17 @@ function saveCard() {
     'Good': 'good', 'Played': 'played', 'Poor': 'played'
   };
 
-  const stockQty = type === 'Carte' ? 1 : Math.max(0, parseInt(document.getElementById('modalStockQty')?.value) || 0);
-  const inStock = stockQty > 0;
+  const isCardType = (type === 'Carte');
+  const cardInStock = document.getElementById('modalCardInStock')?.checked !== false;
+  const stockQty = isCardType ? (cardInStock ? 1 : 0) : Math.max(0, parseInt(document.getElementById('modalStockQty')?.value) || 0);
+  const inStock = isCardType ? cardInStock : (stockQty > 0);
+  const maxPerAccount = parseInt(document.getElementById('modalMaxPerAccount')?.value) || 0;
 
   const listing = {
     type, name, price: parseFloat(price), costPrice, condition,
     conditionClass: conditionClassMap[condition] || 'nm',
     set, origin, rarity, description, image, apiId, inStock, stockQty,
+    maxPerAccount,
     date: new Date().toLocaleDateString('fr-FR'),
   };
 
@@ -2420,6 +2528,7 @@ async function renderInvoicesTab(main) {
               <th>Total</th>
               <th>Détails</th>
               <th>PDF</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -2448,9 +2557,12 @@ async function renderInvoicesTab(main) {
                       PDF
                     </button>
                   </td>
+                  <td>
+                    <button class="table-btn danger" onclick="deleteInvoice('${(o.id || o.ts || i)}')" style="font-size:0.7rem;padding:4px 10px;">Supprimer</button>
+                  </td>
                 </tr>
                 <tr id="inv-detail-${i}" style="display:none;">
-                  <td colspan="7" style="padding:16px 20px;background:rgba(77,201,246,0.02);border-left:3px solid var(--holo-1);">
+                  <td colspan="8" style="padding:16px 20px;background:rgba(77,201,246,0.02);border-left:3px solid var(--holo-1);">
                     <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px;">Détail de la commande</div>
                     ${details.length > 0 ? `
                       <table style="width:100%;font-size:0.82rem;">
@@ -2485,6 +2597,30 @@ function toggleInvoiceDetail(id) {
   const row = document.getElementById(id);
   if (!row) return;
   row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+async function deleteInvoice(orderId) {
+  if (!confirm(`Supprimer définitivement la facture ${orderId} ?`)) return;
+
+  // Supprimer du localStorage
+  const orders = JSON.parse(localStorage.getItem('holofoil_orders') || '[]');
+  const idx = orders.findIndex(o => (o.id || String(o.ts)) === orderId);
+  if (idx >= 0) {
+    orders.splice(idx, 1);
+    localStorage.setItem('holofoil_orders', JSON.stringify(orders));
+  }
+
+  // Supprimer de Firestore si disponible
+  if (typeof FIREBASE_READY !== 'undefined' && FIREBASE_READY) {
+    try {
+      const snap = await db.collection('orders').where('id', '==', orderId).limit(1).get();
+      if (!snap.empty) await snap.docs[0].ref.delete();
+    } catch (e) {
+      console.error('[Holofoil] Firestore delete order error:', e);
+    }
+  }
+
+  renderInvoicesTab(document.getElementById('adminMain'));
 }
 
 // ═══════════════════════════════════════
@@ -2889,23 +3025,7 @@ async function getAllSupportTickets() {
 }
 
 async function saveSupportTicket(ticket) {
-  if (isFirebaseReady()) {
-    try {
-      if (ticket._docId) {
-        const docId = ticket._docId;
-        const data = { ...ticket };
-        delete data._docId;
-        await db.collection('support_tickets').doc(docId).set(data);
-      } else {
-        const data = { ...ticket };
-        delete data._docId;
-        await db.collection('support_tickets').add(data);
-      }
-      return;
-    } catch (e) {
-      console.error('[Holofoil] Firestore save ticket error:', e);
-    }
-  }
+  // Toujours sauvegarder en localStorage
   const tickets = JSON.parse(localStorage.getItem('holofoil_support_tickets') || '[]');
   const idx = tickets.findIndex(t => t.id === ticket.id);
   const data = { ...ticket };
@@ -2913,24 +3033,44 @@ async function saveSupportTicket(ticket) {
   if (idx >= 0) tickets[idx] = data;
   else tickets.unshift(data);
   localStorage.setItem('holofoil_support_tickets', JSON.stringify(tickets));
-}
 
-async function deleteSupportTicket(ticket) {
+  // + Firestore si disponible
   if (isFirebaseReady()) {
     try {
       if (ticket._docId) {
-        await db.collection('support_tickets').doc(ticket._docId).delete();
+        const docId = ticket._docId;
+        const fsData = { ...ticket };
+        delete fsData._docId;
+        await db.collection('support_tickets').doc(docId).set(fsData);
+      } else {
+        const fsData = { ...ticket };
+        delete fsData._docId;
+        await db.collection('support_tickets').add(fsData);
       }
-      return;
     } catch (e) {
-      console.error('[Holofoil] Firestore delete ticket error:', e);
+      console.error('[Holofoil] Firestore save ticket error:', e);
     }
   }
+}
+
+async function deleteSupportTicket(ticket) {
+  // Toujours supprimer du localStorage
   const tickets = JSON.parse(localStorage.getItem('holofoil_support_tickets') || '[]');
   const idx = tickets.findIndex(t => t.id === ticket.id);
   if (idx >= 0) {
     tickets.splice(idx, 1);
     localStorage.setItem('holofoil_support_tickets', JSON.stringify(tickets));
+  }
+
+  // + Firestore si disponible
+  if (isFirebaseReady()) {
+    try {
+      if (ticket._docId) {
+        await db.collection('support_tickets').doc(ticket._docId).delete();
+      }
+    } catch (e) {
+      console.error('[Holofoil] Firestore delete ticket error:', e);
+    }
   }
 }
 
@@ -3018,17 +3158,20 @@ async function renderSupportTab(main) {
     const msgCount = (t.messages || []).length;
     const lastActivity = supportFormatDateTime(t.updatedAt || t.createdAt);
     return `
-      <tr style="cursor:pointer;transition:background 0.15s;" onmouseenter="this.style.background='rgba(255,255,255,0.02)'" onmouseleave="this.style.background=''" onclick="adminSupportOpenTicket('${t.id}')">
-        <td style="padding:12px 14px;font-family:monospace;font-size:0.78rem;color:var(--holo-1);">${t.id}</td>
-        <td style="padding:12px 14px;">
+      <tr style="cursor:pointer;transition:background 0.15s;" onmouseenter="this.style.background='rgba(255,255,255,0.02)'" onmouseleave="this.style.background=''">
+        <td style="padding:12px 14px;font-family:monospace;font-size:0.78rem;color:var(--holo-1);" onclick="adminSupportOpenTicket('${t.id}')">${t.id}</td>
+        <td style="padding:12px 14px;" onclick="adminSupportOpenTicket('${t.id}')">
           <div style="font-size:0.82rem;font-weight:500;">${t.userName || '—'}</div>
           <div style="font-size:0.72rem;color:var(--text-muted);">${t.email || '—'}</div>
         </td>
-        <td style="padding:12px 14px;font-size:0.82rem;">${t.subject || '—'}</td>
-        <td style="padding:12px 14px;font-size:0.78rem;color:var(--text-muted);">${supportCategoryLabel(t.category)}</td>
-        <td style="padding:12px 14px;">${supportStatusBadge(t.status)}</td>
-        <td style="padding:12px 14px;font-size:0.78rem;color:var(--text-muted);">${lastActivity}</td>
-        <td style="padding:12px 14px;text-align:center;font-size:0.82rem;">${msgCount}</td>
+        <td style="padding:12px 14px;font-size:0.82rem;" onclick="adminSupportOpenTicket('${t.id}')">${t.subject || '—'}</td>
+        <td style="padding:12px 14px;font-size:0.78rem;color:var(--text-muted);" onclick="adminSupportOpenTicket('${t.id}')">${supportCategoryLabel(t.category)}</td>
+        <td style="padding:12px 14px;" onclick="adminSupportOpenTicket('${t.id}')">${supportStatusBadge(t.status)}</td>
+        <td style="padding:12px 14px;font-size:0.78rem;color:var(--text-muted);" onclick="adminSupportOpenTicket('${t.id}')">${lastActivity}</td>
+        <td style="padding:12px 14px;text-align:center;font-size:0.82rem;" onclick="adminSupportOpenTicket('${t.id}')">${msgCount}</td>
+        <td style="padding:12px 14px;text-align:center;">
+          <button class="table-btn danger" onclick="event.stopPropagation();adminSupportDeleteFromList('${t.id}')" style="font-size:0.7rem;padding:4px 10px;">Supprimer</button>
+        </td>
       </tr>`;
   }).join('');
 
@@ -3077,6 +3220,7 @@ async function renderSupportTab(main) {
             <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Statut</th>
             <th style="padding:10px 14px;text-align:left;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Dernière activité</th>
             <th style="padding:10px 14px;text-align:center;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Msgs</th>
+            <th style="padding:10px 14px;text-align:center;font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Actions</th>
           </tr>
         </thead>
         <tbody>${ticketRows}</tbody>
@@ -3152,27 +3296,47 @@ async function renderSupportConversation(main) {
 
     ${!isClosed ? `
     <div class="stat-card" style="padding:16px;margin-bottom:16px;">
-      <textarea class="form-input" id="adminSupportReply" rows="3" placeholder="Écrire une réponse..." style="width:100%;resize:vertical;margin-bottom:10px;"></textarea>
-      <button class="admin-save-btn" onclick="adminSupportSendReply()">Envoyer</button>
+      <textarea class="form-input" id="adminSupportReply" rows="3" placeholder="Écrire une réponse..." style="width:100%;resize:vertical;margin-bottom:12px;font-size:0.88rem;"></textarea>
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="table-btn" onclick="adminSupportSendReply()" style="padding:10px 24px;font-size:0.82rem;font-weight:600;border-color:rgba(77,201,246,0.3);color:var(--holo-1);display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
+          Envoyer
+        </button>
+      </div>
     </div>` : ''}
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
       ${!isClosed ? `
-        <button class="admin-save-btn" style="background:linear-gradient(135deg,#2ecc71,#27ae60);padding:8px 18px;font-size:0.8rem;" onclick="adminSupportShowCloseForm('resolved')">Clore — Résolu</button>
-        <button class="admin-save-btn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);padding:8px 18px;font-size:0.8rem;" onclick="adminSupportShowCloseForm('unresolved')">Clore — Non résolu</button>
+        <button class="table-btn" onclick="adminSupportShowCloseForm('resolved')" style="padding:8px 18px;font-size:0.8rem;font-weight:600;border-color:rgba(46,204,113,0.3);color:#2ecc71;">
+          <span style="display:inline-flex;align-items:center;gap:6px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Clore — Résolu
+          </span>
+        </button>
+        <button class="table-btn" onclick="adminSupportShowCloseForm('unresolved')" style="padding:8px 18px;font-size:0.8rem;font-weight:600;border-color:rgba(231,76,60,0.3);color:#e74c3c;">
+          <span style="display:inline-flex;align-items:center;gap:6px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Clore — Non résolu
+          </span>
+        </button>
       ` : `
-        <button class="admin-save-btn" style="padding:8px 18px;font-size:0.8rem;" onclick="adminSupportReopen()">Rouvrir</button>
+        <button class="table-btn" onclick="adminSupportReopen()" style="padding:8px 18px;font-size:0.8rem;font-weight:600;border-color:rgba(77,201,246,0.3);color:var(--holo-1);">
+          <span style="display:inline-flex;align-items:center;gap:6px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
+            Rouvrir
+          </span>
+        </button>
       `}
-      <button class="table-btn" style="border-color:rgba(231,76,60,0.4);color:#e74c3c;font-size:0.8rem;" onclick="adminSupportDelete()">Supprimer</button>
+      <button class="table-btn danger" onclick="adminSupportDelete()" style="padding:8px 18px;font-size:0.8rem;">Supprimer</button>
     </div>
 
     <div id="${closureFormId}" style="display:none;">
       <div class="stat-card" style="padding:16px;">
         <div style="font-size:0.85rem;font-weight:600;margin-bottom:10px;">Raison de clôture</div>
-        <textarea class="form-input" id="adminClosureReason" rows="2" placeholder="Expliquez la raison de la clôture..." style="width:100%;resize:vertical;margin-bottom:10px;"></textarea>
-        <div style="display:flex;gap:8px;">
-          <button class="admin-save-btn" style="padding:8px 18px;font-size:0.8rem;" id="adminClosureConfirmBtn" onclick="adminSupportConfirmClose()">Confirmer</button>
+        <textarea class="form-input" id="adminClosureReason" rows="2" placeholder="Expliquez la raison de la clôture..." style="width:100%;resize:vertical;margin-bottom:12px;font-size:0.88rem;"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button class="table-btn" style="font-size:0.8rem;" onclick="document.getElementById('${closureFormId}').style.display='none'">Annuler</button>
+          <button class="table-btn" style="padding:8px 18px;font-size:0.8rem;font-weight:600;border-color:rgba(77,201,246,0.3);color:var(--holo-1);" id="adminClosureConfirmBtn" onclick="adminSupportConfirmClose()">Confirmer la clôture</button>
         </div>
       </div>
     </div>
@@ -3251,6 +3415,17 @@ async function adminSupportDelete() {
   await deleteSupportTicket(ticket);
   adminSupportState.view = 'list';
   adminSupportState.currentTicket = null;
+  renderSupportTab(document.getElementById('adminMain'));
+}
+
+async function adminSupportDeleteFromList(ticketId) {
+  if (!confirm(`Supprimer définitivement le ticket ${ticketId} ?`)) return;
+
+  const tickets = await getAllSupportTickets();
+  const ticket = tickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+
+  await deleteSupportTicket(ticket);
   renderSupportTab(document.getElementById('adminMain'));
 }
 
