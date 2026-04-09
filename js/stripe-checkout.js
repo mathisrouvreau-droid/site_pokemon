@@ -188,7 +188,7 @@ async function handlePaymentSuccess(sessionId) {
       const res = await fetch(`${STRIPE_CONFIG.functionsUrl}/getOrderStatus?session_id=${sessionId}`);
       const data = await res.json();
       if (data.status === 'paid') {
-        console.log(`[Holofoil] Paiement confirmé: ${data.amountTotal}€`);
+        // Payment confirmed
       }
     } catch (e) {
       console.warn('[Holofoil] Could not verify payment status:', e);

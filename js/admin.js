@@ -3,11 +3,12 @@
    ═══════════════════════════════════════ */
 
 // ─── DEFAULT DATA ───
-// NOTE: Default admin credentials — in production, use hashed passwords and server-side auth.
-// These are stored in localStorage on first init and can be changed from the admin panel.
+// Default admin — password hash is pre-computed SHA-256. Never store plaintext.
+const DEFAULT_ADMIN_EMAIL = 'jojodogm@gmail.com';
+const DEFAULT_ADMIN_HASH = '44fb6ae27f49d5cf1aa5dce915e8d837f3bc791b375c8719b4b2f8981d67f2dc';
 const DEFAULT_ADMIN = {
-  email: 'jojodogm@gmail.com',
-  password: atob('Sm9qb2x1bHVAMjAwNDIwMDJNSU1P'),
+  email: DEFAULT_ADMIN_EMAIL,
+  passwordHash: DEFAULT_ADMIN_HASH,
   role: 'owner'
 };
 
@@ -25,12 +26,41 @@ function getAdmins() {
     admins = [DEFAULT_ADMIN];
     localStorage.setItem(KEYS.admins, JSON.stringify(admins));
   }
-  // Always ensure default admin exists
-  if (!admins.find(a => a.email === DEFAULT_ADMIN.email)) {
+  // Ensure default admin exists
+  if (!admins.find(a => a.email === DEFAULT_ADMIN_EMAIL)) {
     admins.push(DEFAULT_ADMIN);
     localStorage.setItem(KEYS.admins, JSON.stringify(admins));
   }
+  // Migrate: remove plaintext passwords, ensure passwordHash exists
+  let migrated = false;
+  admins.forEach(a => {
+    if (a.password && !a.passwordHash) {
+      // Cannot hash synchronously — mark for async migration
+      a._needsHash = true;
+      migrated = true;
+    }
+    if (a.password) {
+      delete a.password;
+      migrated = true;
+    }
+  });
+  if (migrated) localStorage.setItem(KEYS.admins, JSON.stringify(admins));
   return admins;
+}
+
+// Async migration for admins with plaintext passwords
+async function migrateAdminPasswords() {
+  let admins = JSON.parse(localStorage.getItem(KEYS.admins) || '[]');
+  let changed = false;
+  for (const a of admins) {
+    if (a._needsHash && !a.passwordHash) {
+      // Fallback: set default hash if password was already deleted
+      a.passwordHash = DEFAULT_ADMIN_HASH;
+      delete a._needsHash;
+      changed = true;
+    }
+  }
+  if (changed) localStorage.setItem(KEYS.admins, JSON.stringify(admins));
 }
 
 function saveAdmins(admins) {
@@ -39,7 +69,14 @@ function saveAdmins(admins) {
 
 // ─── SESSION ───
 function getSession() {
-  return JSON.parse(localStorage.getItem(KEYS.session) || 'null');
+  const session = JSON.parse(localStorage.getItem(KEYS.session) || 'null');
+  if (!session) return null;
+  // Validate session expiry
+  if (!isSessionValid(session)) {
+    clearSession();
+    return null;
+  }
+  return session;
 }
 
 function setSession(email) {
@@ -57,12 +94,18 @@ function getListings() {
 
 function saveListings(listings) {
   localStorage.setItem(KEYS.listings, JSON.stringify(listings));
+  // Sync to Firestore in background
+  if (typeof DB !== 'undefined' && DB.pushListings) DB.pushListings();
 }
 
 // ═══════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════
-function attemptLogin() {
+
+// Auto-migrate on load
+migrateAdminPasswords();
+
+async function attemptLogin() {
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPassword').value;
   const errorEl = document.getElementById('loginError');
@@ -73,17 +116,35 @@ function attemptLogin() {
     return;
   }
 
-  const admins = getAdmins();
-  const user = admins.find(a => a.email.toLowerCase() === email && a.password === password);
+  // Rate limiting
+  const rateCheck = checkRateLimit(email);
+  if (!rateCheck.allowed) {
+    errorEl.textContent = `Trop de tentatives. Réessayez dans ${rateCheck.remaining} minute(s).`;
+    errorEl.classList.add('visible');
+    return;
+  }
 
-  if (!user) {
+  const admins = getAdmins();
+  let matchedAdmin = null;
+
+  for (const a of admins) {
+    if (a.email.toLowerCase() !== email) continue;
+    if (a.passwordHash) {
+      const ok = await verifyPassword(password, a.passwordHash);
+      if (ok) { matchedAdmin = a; break; }
+    }
+  }
+
+  if (!matchedAdmin) {
+    recordLoginFailure(email);
     errorEl.textContent = 'Email ou mot de passe incorrect.';
     errorEl.classList.add('visible');
     return;
   }
 
+  clearLoginFailures(email);
   errorEl.classList.remove('visible');
-  setSession(user.email);
+  setSession(matchedAdmin.email);
   showDashboard();
 }
 
@@ -1570,9 +1631,63 @@ async function downloadInvoice(orderIndex) {
 // ═══════════════════════════════════════
 //  CARDS TAB
 // ═══════════════════════════════════════
+// ─── Admin set filter dropdown helpers ───
+function toggleAdminSetDropdown() {
+  const dd = document.getElementById('adminSetDropdown');
+  if (!dd) return;
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'flex';
+  dd.style.flexDirection = 'column';
+  if (!isOpen) {
+    const input = document.getElementById('adminSetSearch');
+    if (input) { input.value = ''; filterAdminSets(); setTimeout(() => input.focus(), 50); }
+  }
+}
+function filterAdminSets() {
+  const q = (document.getElementById('adminSetSearch')?.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  document.querySelectorAll('#adminSetOptions .admin-set-opt').forEach(el => {
+    if (el.dataset.value === 'all') { el.style.display = ''; return; }
+    const text = (el.dataset.search || el.textContent || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    el.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+}
+function selectAdminSet(value, label) {
+  _adminFilterSet = value;
+  document.getElementById('adminSetDropdown').style.display = 'none';
+  renderCardsTab(document.getElementById('adminMain'));
+}
+// Close admin set dropdown on outside click
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('adminSetDropdown');
+  const trigger = document.getElementById('adminSetTrigger');
+  if (dd && trigger && !trigger.contains(e.target) && !dd.contains(e.target)) {
+    dd.style.display = 'none';
+  }
+});
+
+// ─── Admin products filter state ───
+let _adminFilterSet = 'all';
+let _adminFilterType = 'all';
+let _adminFilterOrigin = 'all';
+
 function renderCardsTab(container) {
-  const listings = getListings();
-  const totalValue = listings.reduce((s, l) => s + (parseFloat(l.price) || 0), 0);
+  const allListings = getListings();
+  const totalValue = allListings.reduce((s, l) => s + (parseFloat(l.price) || 0), 0);
+
+  // Collect unique sets, types, origins for filter dropdowns
+  const allSets = [...new Set(allListings.map(l => l.set).filter(Boolean))].sort();
+  const customSets = getCustomSets();
+  const combinedSets = [...new Set([...allSets, ...customSets])].sort();
+  const allTypes = [...new Set(allListings.map(l => l.type || 'Carte'))].sort();
+  const allOrigins = [...new Set(allListings.map(l => l.origin || 'FR'))].sort();
+
+  // Apply filters — keep original index for edit/delete
+  const listings = allListings.map((l, i) => ({ ...l, _origIdx: i })).filter(l => {
+    if (_adminFilterSet !== 'all' && (l.set || '') !== _adminFilterSet) return false;
+    if (_adminFilterType !== 'all' && (l.type || 'Carte') !== _adminFilterType) return false;
+    if (_adminFilterOrigin !== 'all' && (l.origin || 'FR') !== _adminFilterOrigin) return false;
+    return true;
+  });
 
   container.innerHTML = `
     <div class="admin-header">
@@ -1588,7 +1703,7 @@ function renderCardsTab(container) {
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">Produits en vente</div>
-        <div class="stat-value">${listings.length}</div>
+        <div class="stat-value">${allListings.length}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Valeur totale</div>
@@ -1596,15 +1711,57 @@ function renderCardsTab(container) {
       </div>
       <div class="stat-card">
         <div class="stat-label">Prix moyen</div>
-        <div class="stat-value">${listings.length ? (totalValue / listings.length).toFixed(2) : '0.00'} €</div>
+        <div class="stat-value">${allListings.length ? (totalValue / allListings.length).toFixed(2) : '0.00'} €</div>
       </div>
     </div>
 
-    ${listings.length === 0 ? `
+    <!-- Filtres -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+      <div class="admin-set-filter" style="position:relative;min-width:200px;max-width:300px;">
+        <div id="adminSetTrigger" onclick="toggleAdminSetDropdown()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-input);color:var(--text-secondary);font-size:0.82rem;cursor:pointer;transition:var(--transition);user-select:none;">
+          <span id="adminSetLabel" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_adminFilterSet === 'all' ? 'Tous les sets' : (() => { const tr = typeof translateSetName === 'function' ? translateSetName(_adminFilterSet, 'JA') : _adminFilterSet; const trZh = typeof translateSetName === 'function' ? translateSetName(_adminFilterSet, 'CN') : _adminFilterSet; return tr !== _adminFilterSet ? tr + '  (' + _adminFilterSet + ')' : (trZh !== _adminFilterSet ? trZh + '  (' + _adminFilterSet + ')' : _adminFilterSet); })()}</span>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="var(--text-muted)" style="flex-shrink:0;"><path d="M8 11L3 6h10z"/></svg>
+        </div>
+        <div id="adminSetDropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;min-width:100%;width:max-content;max-width:400px;max-height:360px;z-index:500;border-radius:var(--radius);border:1px solid var(--border);background:rgba(10,10,20,0.95);backdrop-filter:blur(32px);box-shadow:0 12px 48px rgba(0,0,0,0.5);overflow:hidden;">
+          <div style="padding:8px 8px 4px;position:sticky;top:0;background:rgba(10,10,20,0.98);z-index:1;">
+            <input type="text" id="adminSetSearch" placeholder="Rechercher un set..." oninput="filterAdminSets()" onclick="event.stopPropagation()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:0.8rem;outline:none;">
+          </div>
+          <div id="adminSetOptions" style="max-height:280px;overflow-y:auto;padding:4px;">
+            <div class="admin-set-opt" data-value="all" onclick="selectAdminSet('all','Tous les sets')" style="padding:8px 14px;border-radius:8px;font-size:0.82rem;cursor:pointer;color:${_adminFilterSet === 'all' ? 'var(--holo-1)' : 'var(--text-secondary)'};font-weight:${_adminFilterSet === 'all' ? '600' : '500'};">Tous les sets</div>
+            ${combinedSets.map(s => {
+              const tr = typeof translateSetName === 'function' ? translateSetName(s, 'JA') : s;
+              const trZh = typeof translateSetName === 'function' ? translateSetName(s, 'CN') : s;
+              const display = tr !== s ? tr + '  (' + s + ')' : (trZh !== s ? trZh + '  (' + s + ')' : s);
+              const isSel = _adminFilterSet === s;
+              return '<div class="admin-set-opt" data-value="' + s.replace(/"/g,'&quot;') + '" data-search="' + (display + ' ' + s).toLowerCase().replace(/"/g,'&quot;') + '" onclick="selectAdminSet(\'' + s.replace(/'/g,"\\'") + '\',\'' + display.replace(/'/g,"\\'") + '\')" style="padding:8px 14px;border-radius:8px;font-size:0.82rem;cursor:pointer;color:' + (isSel ? 'var(--holo-1)' : 'var(--text-secondary)') + ';font-weight:' + (isSel ? '600' : '500') + ';">' + display + '</div>';
+            }).join('')}
+          </div>
+        </div>
+      </div>
+      <select class="form-select" id="adminFilterType" onchange="_adminFilterType=this.value;renderCardsTab(document.getElementById('adminMain'))" style="min-width:130px;max-width:180px;font-size:0.82rem;padding:8px 12px;">
+        <option value="all">Tous les types</option>
+        ${allTypes.map(t => `<option value="${t}" ${_adminFilterType === t ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+      <select class="form-select" id="adminFilterOrigin" onchange="_adminFilterOrigin=this.value;renderCardsTab(document.getElementById('adminMain'))" style="min-width:130px;max-width:180px;font-size:0.82rem;padding:8px 12px;">
+        <option value="all">Toutes origines</option>
+        ${allOrigins.map(o => `<option value="${o}" ${_adminFilterOrigin === o ? 'selected' : ''}>${o}</option>`).join('')}
+      </select>
+      ${(_adminFilterSet !== 'all' || _adminFilterType !== 'all' || _adminFilterOrigin !== 'all') ? `
+        <button class="table-btn" onclick="_adminFilterSet='all';_adminFilterType='all';_adminFilterOrigin='all';renderCardsTab(document.getElementById('adminMain'))" style="padding:8px 14px;font-size:0.78rem;">Réinitialiser</button>
+        <span style="font-size:0.78rem;color:var(--text-muted);">${listings.length} / ${allListings.length} produits</span>
+      ` : ''}
+    </div>
+
+    ${allListings.length === 0 ? `
       <div class="empty-state">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
         <p>Aucun produit en vente pour le moment.</p>
         <button class="holo-btn-filled" onclick="openCardModal()" style="padding:10px 24px;font-size:0.85rem;">Ajouter mon premier produit</button>
+      </div>
+    ` : listings.length === 0 ? `
+      <div class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;color:var(--text-muted);margin-bottom:10px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <p>Aucun produit ne correspond aux filtres sélectionnés.</p>
       </div>
     ` : `
       <div class="admin-table-wrap">
@@ -1633,8 +1790,8 @@ function renderCardsTab(container) {
                   <div class="card-info">
                     ${l.image ? `<img src="${l.image}" class="card-thumb" alt="">` : `<div class="card-thumb" style="background:var(--bg-elevated);"></div>`}
                     <div class="card-info-text">
-                      <h4>${l.name}</h4>
-                      <p>${l.set || ''} ${l.apiId ? '· API' : '· Custom'}</p>
+                      <h4>${sanitizeHTML(l.name)}</h4>
+                      <p>${sanitizeHTML((typeof translateSetName === 'function' && l.set ? translateSetName(l.set, l.origin || 'FR') : l.set) || '')} ${l.apiId ? '· API' : '· Custom'}</p>
                     </div>
                   </div>
                 </td>
@@ -1647,8 +1804,8 @@ function renderCardsTab(container) {
                 <td style="font-size:0.8rem;color:var(--text-muted);">${l.date || '—'}</td>
                 <td>
                   <div class="table-actions">
-                    <button class="table-btn" onclick="editCard(${i})">Modifier</button>
-                    <button class="table-btn danger" onclick="deleteCard(${i})">Supprimer</button>
+                    <button class="table-btn" onclick="editCard(${l._origIdx})">Modifier</button>
+                    <button class="table-btn danger" onclick="deleteCard(${l._origIdx})">Supprimer</button>
                   </div>
                 </td>
               </tr>`;
@@ -1883,14 +2040,35 @@ async function loadSetsForOrigin() {
   }
 
   sel.innerHTML = '<option value="">— Choisir un set —</option>';
+
+  // Add custom sets first (from admin settings)
+  const customSets = getCustomSets();
+  if (customSets.length > 0) {
+    const customGroup = document.createElement('optgroup');
+    customGroup.label = 'Sets personnalisés';
+    customSets.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (name === currentVal) opt.selected = true;
+      customGroup.appendChild(opt);
+    });
+    sel.appendChild(customGroup);
+  }
+
+  // Add API sets (with translation for JA/CN)
+  const apiGroup = document.createElement('optgroup');
+  apiGroup.label = 'Sets API';
   sets.forEach(s => {
     if (!s.name) return;
     const opt = document.createElement('option');
     opt.value = s.name;
-    opt.textContent = s.name;
+    const translated = typeof translateSetName === 'function' ? translateSetName(s.name, origin) : s.name;
+    opt.textContent = translated !== s.name ? `${translated}  (${s.name})` : s.name;
     if (s.name === currentVal) opt.selected = true;
-    sel.appendChild(opt);
+    apiGroup.appendChild(opt);
   });
+  sel.appendChild(apiGroup);
 
   // Add custom option at the end
   const customOpt = document.createElement('option');
@@ -1899,8 +2077,9 @@ async function loadSetsForOrigin() {
   sel.appendChild(customOpt);
 
   // If current value is not in the list, switch to custom
+  const allKnownSets = [...customSets, ...sets.map(s => s.name).filter(Boolean)];
   const customInput = document.getElementById('modalCardSetCustom');
-  if (currentVal && !sets.some(s => s.name === currentVal)) {
+  if (currentVal && !allKnownSets.includes(currentVal)) {
     sel.value = '__custom';
     if (customInput) {
       customInput.style.display = '';
@@ -2629,7 +2808,7 @@ async function deleteInvoice(orderId) {
 
 function getAnnouncementsData() {
   try {
-    const data = JSON.parse(localStorage.getItem('holofoil_announcements'));
+    const data = JSON.parse(localStorage.getItem('holofoil_announcements') || 'null');
     if (data && data.length > 0) return data;
   } catch(e) {}
   return [
@@ -2641,11 +2820,12 @@ function getAnnouncementsData() {
 
 function saveAnnouncementsData(arr) {
   localStorage.setItem('holofoil_announcements', JSON.stringify(arr));
+  if (typeof DB !== 'undefined' && DB.pushAnnouncements) DB.pushAnnouncements();
 }
 
 function getMarqueeData() {
   try {
-    const data = JSON.parse(localStorage.getItem('holofoil_marquee'));
+    const data = JSON.parse(localStorage.getItem('holofoil_marquee') || 'null');
     if (data && data.length > 0) return data;
   } catch(e) {}
   return ['Authenticité Garantie', 'Livraison Sécurisée', 'Rachat au Meilleur Prix', 'Paiement Sécurisé', 'Expert Pokémon'];
@@ -2653,6 +2833,7 @@ function getMarqueeData() {
 
 function saveMarqueeData(arr) {
   localStorage.setItem('holofoil_marquee', JSON.stringify(arr));
+  if (typeof DB !== 'undefined' && DB.pushAnnouncements) DB.pushAnnouncements();
 }
 
 function renderAnnouncementsTab(main) {
@@ -2714,7 +2895,7 @@ function renderAnnouncementsTab(main) {
 
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-label" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Aperçu en direct</label>
-          <div style="background:linear-gradient(90deg, #4dc9f6, #a855f7, #f97316, #22d3ee, #ec4899, #4dc9f6);background-size:200% 100%;animation:holoShift 6s linear infinite;padding:12px 20px;text-align:center;font-size:0.82rem;font-weight:600;color:#fff;letter-spacing:0.03em;border-radius:var(--radius);">
+          <div style="background:#4dc9f6;padding:12px 20px;text-align:center;font-size:0.82rem;font-weight:600;color:#fff;letter-spacing:0.03em;border-radius:var(--radius);">
             ${announcements[0] || 'Aucune annonce'}
           </div>
         </div>
@@ -2806,6 +2987,44 @@ function renderAnnouncementsTab(main) {
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- ═══ SETS PERSONNALISÉS ═══ -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div>
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">Sets personnalisés</h3>
+            <p style="font-size:0.75rem;color:var(--text-muted);">Ajoutez vos propres sets/extensions. Ils apparaîtront dans les filtres de la boutique et du panel admin.</p>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px;">
+          <div style="flex:1;">
+            <input type="text" class="form-input" id="newCustomSet" placeholder="Ex : Mon set personnalisé..." onkeydown="if(event.key==='Enter')addCustomSet()">
+          </div>
+          <button class="admin-save-btn" onclick="addCustomSet()" style="width:auto;padding:10px 20px;font-size:0.82rem;margin-top:0;flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Ajouter
+          </button>
+        </div>
+
+        ${getCustomSets().length === 0 ? `
+          <div style="text-align:center;padding:30px 20px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:10px;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+            <p style="color:var(--text-muted);font-size:0.82rem;">Aucun set personnalisé. Les sets de l'API TCGdex sont utilisés par défaut.</p>
+          </div>
+        ` : `
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${getCustomSets().map((s, i) => `
+              <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:50px;transition:var(--transition);" onmouseover="this.style.borderColor='rgba(77,201,246,0.15)'" onmouseout="this.style.borderColor='var(--border)'">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);">${s}</span>
+                <button onclick="deleteCustomSet(${i})" style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(239,68,68,0.1);border:none;cursor:pointer;color:#ef4444;font-size:0.7rem;padding:0;transition:0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'" title="Supprimer">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
               </div>
             `).join('')}
           </div>
@@ -2904,9 +3123,33 @@ function resetMarquee() {
   showToast && showToast('Bandeau défilant réinitialisé');
 }
 
+// ─── CUSTOM SETS CRUD ───
+function getCustomSets() { try { return JSON.parse(localStorage.getItem('holofoil_custom_sets')||'[]'); } catch(e) { return []; } }
+function saveCustomSets(arr) { localStorage.setItem('holofoil_custom_sets', JSON.stringify(arr)); if (typeof DB !== 'undefined' && DB.pushCustomSets) DB.pushCustomSets(); }
+
+function addCustomSet() {
+  const input = document.getElementById('newCustomSet');
+  const name = (input?.value || '').trim();
+  if (!name) { input?.focus(); showToast && showToast('Saisissez un nom de set', 'error'); return; }
+  const sets = getCustomSets();
+  if (sets.find(s => s.toLowerCase() === name.toLowerCase())) { showToast && showToast('Ce set existe déjà', 'error'); return; }
+  sets.push(name);
+  saveCustomSets(sets);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Set "' + name + '" ajouté');
+}
+
+function deleteCustomSet(idx) {
+  const sets = getCustomSets();
+  sets.splice(idx, 1);
+  saveCustomSets(sets);
+  renderAnnouncementsTab(document.getElementById('adminMain'));
+  showToast && showToast('Set supprimé');
+}
+
 // ─── PROMO CODES CRUD ───
 function getPromoCodes() { try { return JSON.parse(localStorage.getItem('holofoil_promo_codes')||'[]'); } catch(e) { return []; } }
-function savePromoCodes(arr) { localStorage.setItem('holofoil_promo_codes', JSON.stringify(arr)); }
+function savePromoCodes(arr) { localStorage.setItem('holofoil_promo_codes', JSON.stringify(arr)); if (typeof DB !== 'undefined' && DB.pushPromoCodes) DB.pushPromoCodes(); }
 
 function addPromoCode() {
   const codeInput = document.getElementById('newPromoCode');
@@ -2974,7 +3217,7 @@ function renderUsersTab(container) {
   `;
 }
 
-function addAdmin() {
+async function addAdmin() {
   const email = document.getElementById('newAdminEmail').value.trim().toLowerCase();
   const password = document.getElementById('newAdminPassword').value;
 
@@ -2987,7 +3230,8 @@ function addAdmin() {
     return;
   }
 
-  admins.push({ email, password, role: 'admin' });
+  const passwordHash = await hashPassword(password);
+  admins.push({ email, passwordHash, role: 'admin' });
   saveAdmins(admins);
   renderUsersTab(document.getElementById('adminMain'));
 }

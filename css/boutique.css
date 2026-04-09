@@ -152,22 +152,68 @@
 }
 .glass-panel > * { position: relative; }
 
+/* Scroll row wrapper */
+.scroll-row-wrap {
+  position: relative;
+}
+
 /* Scroll row */
 .scroll-row {
   display: flex;
   gap: 24px;
   overflow-x: auto;
-  padding: 20px 24px 30px;
+  padding: 20px 24px 20px;
   margin: -20px -24px -10px;
   scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(77, 201, 246, 0.3) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
   mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
-.scroll-row::-webkit-scrollbar { height: 4px; }
-.scroll-row::-webkit-scrollbar-track { background: transparent; }
-.scroll-row::-webkit-scrollbar-thumb { background: rgba(77, 201, 246, 0.3); border-radius: 4px; }
+.scroll-row::-webkit-scrollbar { display: none; }
+
+/* Scroll arrows */
+.scroll-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  opacity: 1;
+}
+.scroll-arrow:hover {
+  border-color: var(--holo-1);
+  background: rgba(77, 201, 246, 0.12);
+  color: var(--holo-1);
+  box-shadow: 0 0 20px rgba(77, 201, 246, 0.15), 0 4px 20px rgba(0, 0, 0, 0.3);
+  transform: translateY(-50%) scale(1.08);
+}
+.scroll-arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+.scroll-arrow.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.scroll-arrow-left {
+  left: 4px;
+}
+.scroll-arrow-right {
+  right: 4px;
+}
 .scroll-row .poke-card {
   min-width: 260px;
   max-width: 260px;
@@ -284,7 +330,7 @@
   top: calc(100% + 8px);
   left: 0;
   min-width: 100%;
-  max-height: 320px;
+  max-height: 360px;
   overflow-y: auto;
   z-index: 500;
   border-radius: 16px;
@@ -368,6 +414,48 @@
 .custom-select-group-label:first-child {
   border-top: none;
   margin-top: 0;
+}
+
+/* Search input in custom select */
+.custom-select-search {
+  padding: 6px 6px 2px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(10, 10, 20, 0.95);
+  backdrop-filter: blur(16px);
+}
+.custom-select-search-input {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  outline: none;
+  transition: var(--transition);
+}
+.custom-select-search-input::placeholder {
+  color: var(--text-muted);
+}
+.custom-select-search-input:focus {
+  border-color: var(--border-holo);
+  background: rgba(77, 201, 246, 0.04);
+  box-shadow: 0 0 12px rgba(77, 201, 246, 0.08);
+}
+.custom-select-options {
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(77, 201, 246, 0.25) transparent;
+}
+.custom-select-options::-webkit-scrollbar { width: 4px; }
+.custom-select-options::-webkit-scrollbar-track { background: transparent; }
+.custom-select-options::-webkit-scrollbar-thumb {
+  background: rgba(77, 201, 246, 0.25);
+  border-radius: 4px;
 }
 
 /* All cards grid */

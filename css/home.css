@@ -4,9 +4,7 @@
 
 /* --- Announcement Bar --- */
 .announcement-bar {
-  background: linear-gradient(90deg, #4dc9f6, #a855f7, #f97316, #22d3ee, #ec4899, #4dc9f6);
-  background-size: 200% 100%;
-  animation: holoShift 6s linear infinite;
+  background: var(--holo-1);
   padding: 10px 20px;
   text-align: center;
   font-size: 0.82rem;

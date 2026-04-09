@@ -21,7 +21,7 @@
   --holo-3: #f97316;
   --holo-4: #22d3ee;
   --holo-5: #ec4899;
-  --holo-grad: linear-gradient(135deg, #4dc9f6, #a855f7, #f97316, #22d3ee, #ec4899);
+  --holo-grad: #4dc9f6;
   --radius: 12px;
   --radius-lg: 20px;
   --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -55,23 +55,9 @@ img { max-width: 100%; display: block; }
    HOLOGRAPHIC EFFECTS
    ═══════════════════════════════════════ */
 .holo-text {
-  background: linear-gradient(90deg, #4dc9f6, #a855f7, #f97316, #22d3ee, #ec4899, #4dc9f6);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: holoShift 4s linear infinite;
+  color: var(--holo-1);
 }
 
-@keyframes holoShift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-@keyframes holoBorder {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
 
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(30px); }
@@ -108,9 +94,7 @@ img { max-width: 100%; display: block; }
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(135deg, #4dc9f6, #a855f7, #f97316, #22d3ee);
-  background-size: 300% 300%;
-  animation: holoBorder 4s ease infinite;
+  background: var(--holo-1);
   z-index: -1;
 }
 .holo-btn::after {
@@ -523,13 +507,17 @@ img { max-width: 100%; display: block; }
 
 /* Condition badges */
 .condition-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 3px 10px;
   border-radius: 50px;
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  line-height: normal;
+  vertical-align: baseline;
 }
 .condition-mint { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
 .condition-nm { background: rgba(74, 222, 128, 0.1); color: #4ade80; }

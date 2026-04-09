@@ -318,5 +318,111 @@ const DB = {
 
   clearCart() {
     localStorage.setItem('holofoil_cart', '[]');
+  },
+
+  // ═══ SYNC Firestore → localStorage ═══
+  // Permet au code synchrone existant (getAdminListings, getListings) de fonctionner
+  // même quand les données viennent de Firestore
+  async syncToLocal() {
+    if (!FIREBASE_READY) return;
+    try {
+      // Listings
+      const snap = await db.collection('listings').orderBy('createdAt', 'desc').get();
+      const listings = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      localStorage.setItem('holofoil_listings', JSON.stringify(listings));
+
+      // Promo codes
+      const promoSnap = await db.collection('promo_codes').get();
+      if (!promoSnap.empty) {
+        const codes = promoSnap.docs.map(d => d.data());
+        localStorage.setItem('holofoil_promo_codes', JSON.stringify(codes));
+      }
+
+      // Custom sets
+      const setsSnap = await db.collection('custom_sets').get();
+      if (!setsSnap.empty) {
+        const sets = setsSnap.docs.map(d => d.data().name).filter(Boolean);
+        localStorage.setItem('holofoil_custom_sets', JSON.stringify(sets));
+      }
+
+      // Announcements
+      const annSnap = await db.collection('settings').doc('announcements').get();
+      if (annSnap.exists) {
+        const data = annSnap.data();
+        if (data.announcements) localStorage.setItem('holofoil_announcements', JSON.stringify(data.announcements));
+        if (data.marquee) localStorage.setItem('holofoil_marquee', JSON.stringify(data.marquee));
+      }
+    } catch (e) {
+      console.warn('[Holofoil] Sync Firestore → localStorage failed:', e.message);
+    }
+  },
+
+  // ═══ PUSH localStorage → Firestore ═══
+  // Appelé après chaque modification admin pour propager les changements
+  async pushListings() {
+    if (!FIREBASE_READY) return;
+    try {
+      const listings = JSON.parse(localStorage.getItem('holofoil_listings') || '[]');
+      // Get existing docs
+      const existing = await db.collection('listings').get();
+      const batch = db.batch();
+      existing.docs.forEach(d => batch.delete(d.ref));
+      listings.forEach(l => {
+        const data = { ...l };
+        delete data._id;
+        if (!data.createdAt) data.createdAt = Date.now();
+        batch.set(db.collection('listings').doc(), data);
+      });
+      await batch.commit();
+    } catch (e) {
+      console.warn('[Holofoil] Push listings to Firestore failed:', e.message);
+    }
+  },
+
+  async pushPromoCodes() {
+    if (!FIREBASE_READY) return;
+    try {
+      const codes = JSON.parse(localStorage.getItem('holofoil_promo_codes') || '[]');
+      const existing = await db.collection('promo_codes').get();
+      const batch = db.batch();
+      existing.docs.forEach(d => batch.delete(d.ref));
+      codes.forEach(c => batch.set(db.collection('promo_codes').doc(), c));
+      await batch.commit();
+    } catch (e) {
+      console.warn('[Holofoil] Push promo codes failed:', e.message);
+    }
+  },
+
+  async pushCustomSets() {
+    if (!FIREBASE_READY) return;
+    try {
+      const sets = JSON.parse(localStorage.getItem('holofoil_custom_sets') || '[]');
+      const existing = await db.collection('custom_sets').get();
+      const batch = db.batch();
+      existing.docs.forEach(d => batch.delete(d.ref));
+      sets.forEach(s => batch.set(db.collection('custom_sets').doc(), { name: s }));
+      await batch.commit();
+    } catch (e) {
+      console.warn('[Holofoil] Push custom sets failed:', e.message);
+    }
+  },
+
+  async pushAnnouncements() {
+    if (!FIREBASE_READY) return;
+    try {
+      const announcements = JSON.parse(localStorage.getItem('holofoil_announcements') || '[]');
+      const marquee = JSON.parse(localStorage.getItem('holofoil_marquee') || '[]');
+      await db.collection('settings').doc('announcements').set({ announcements, marquee }, { merge: true });
+    } catch (e) {
+      console.warn('[Holofoil] Push announcements failed:', e.message);
+    }
   }
 };
+
+// ═══ AUTO-SYNC on page load ═══
+if (typeof FIREBASE_READY !== 'undefined' && FIREBASE_READY) {
+  DB.syncToLocal().then(() => {
+    // Dispatch event so pages can react when sync is complete
+    window.dispatchEvent(new Event('holofoil-synced'));
+  });
+}

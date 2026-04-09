@@ -287,7 +287,30 @@
 
     function getUsers() { return JSON.parse(localStorage.getItem(USER_KEYS.users) || '[]'); }
     function saveUsers(u) { localStorage.setItem(USER_KEYS.users, JSON.stringify(u)); }
-    function getUserSession() { return JSON.parse(localStorage.getItem(USER_KEYS.session) || 'null'); }
+
+    // Migrate: hash any remaining plaintext passwords
+    async function migrateUserPasswords() {
+      const users = getUsers();
+      let changed = false;
+      for (const u of users) {
+        if (u.password && !u.passwordHash) {
+          u.passwordHash = await hashPassword(u.password);
+          delete u.password;
+          changed = true;
+        } else if (u.password && u.passwordHash) {
+          delete u.password;
+          changed = true;
+        }
+      }
+      if (changed) saveUsers(users);
+    }
+    migrateUserPasswords();
+    function getUserSession() {
+      const session = JSON.parse(localStorage.getItem(USER_KEYS.session) || 'null');
+      if (!session) return null;
+      if (!isSessionValid(session)) { clearUserSession(); return null; }
+      return session;
+    }
     function setUserSession(email) { localStorage.setItem(USER_KEYS.session, JSON.stringify({ email, ts: Date.now() })); }
     function clearUserSession() { localStorage.removeItem(USER_KEYS.session); }
 
@@ -333,22 +356,25 @@
       return String(Math.floor(100000 + Math.random() * 900000));
     }
 
-    function registerUser() {
-      const firstName = document.getElementById('regFirstName').value.trim();
-      const lastName = document.getElementById('regLastName').value.trim();
+    async function registerUser() {
+      const firstName = sanitizeHTML(document.getElementById('regFirstName').value.trim());
+      const lastName = sanitizeHTML(document.getElementById('regLastName').value.trim());
       const email = document.getElementById('regEmail').value.trim().toLowerCase();
       const password = document.getElementById('regPassword').value;
       const passwordConfirm = document.getElementById('regPasswordConfirm').value;
 
       if (!firstName || !lastName || !email || !password) { showError('Veuillez remplir tous les champs.'); return; }
-      if (password.length < 6) { showError('Le mot de passe doit faire au moins 6 caractères.'); return; }
+      if (password.length < 8) { showError('Le mot de passe doit faire au moins 8 caractères.'); return; }
+      if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) { showError('Le mot de passe doit contenir au moins une majuscule et un chiffre.'); return; }
       if (password !== passwordConfirm) { showError('Les mots de passe ne correspondent pas.'); return; }
 
       const users = getUsers();
-      if (users.find(u => u.email === email)) { showError('Un compte existe déjà avec cet email.'); return; }
+      // Anti-enumeration: generic message
+      if (users.find(u => u.email === email)) { showError('Impossible de créer ce compte. Vérifiez vos informations.'); return; }
 
-      // Store pending user and show verification screen
-      pendingUser = { firstName, lastName, email, password, address: '', city: '', zip: '', phone: '', createdAt: new Date().toISOString() };
+      // Hash password before storing
+      const passwordHash = await hashPassword(password);
+      pendingUser = { firstName, lastName, email, passwordHash, address: '', city: '', zip: '', phone: '', createdAt: new Date().toISOString() };
       verificationCode = generateCode();
 
       showVerifyScreen(email);
@@ -458,16 +484,42 @@
     }
 
     // ─── LOGIN ───
-    function loginUser() {
+    async function loginUser() {
       const email = document.getElementById('loginEmail').value.trim().toLowerCase();
       const password = document.getElementById('loginPassword').value;
 
       if (!email || !password) { showError('Veuillez remplir tous les champs.'); return; }
 
-      const users = getUsers();
-      const user = users.find(u => u.email === email && u.password === password);
-      if (!user) { showError('Email ou mot de passe incorrect.'); return; }
+      // Rate limiting
+      const rateCheck = checkRateLimit(email);
+      if (!rateCheck.allowed) {
+        showError(`Trop de tentatives. Réessayez dans ${rateCheck.remaining} minute(s).`);
+        return;
+      }
 
+      const users = getUsers();
+      let matched = null;
+      for (const u of users) {
+        if (u.email !== email) continue;
+        if (u.passwordHash) {
+          if (await verifyPassword(password, u.passwordHash)) { matched = u; break; }
+        } else if (u.password === password) {
+          // Legacy plaintext — migrate to hash
+          u.passwordHash = await hashPassword(password);
+          delete u.password;
+          saveUsers(users);
+          matched = u;
+          break;
+        }
+      }
+
+      if (!matched) {
+        recordLoginFailure(email);
+        showError('Email ou mot de passe incorrect.');
+        return;
+      }
+
+      clearLoginFailures(email);
       setUserSession(email);
       showDashboard();
     }
@@ -577,21 +629,34 @@
     }
 
     // ─── CHANGE PASSWORD ───
-    function changePassword() {
+    async function changePassword() {
       const user = getCurrentUser();
       if (!user) return;
 
       const current = document.getElementById('currentPwd').value;
       const newPwd = document.getElementById('newPwd').value;
-      const confirm = document.getElementById('newPwdConfirm').value;
+      const confirmPwd = document.getElementById('newPwdConfirm').value;
 
-      if (current !== user.password) { showToast('Mot de passe actuel incorrect'); return; }
-      if (newPwd.length < 6) { showToast('Le nouveau mot de passe doit faire au moins 6 caractères'); return; }
-      if (newPwd !== confirm) { showToast('Les mots de passe ne correspondent pas'); return; }
+      // Verify current password
+      let currentOk = false;
+      if (user.passwordHash) {
+        currentOk = await verifyPassword(current, user.passwordHash);
+      } else if (user.password) {
+        currentOk = (current === user.password);
+      }
+      if (!currentOk) { showToast('Mot de passe actuel incorrect'); return; }
+
+      if (newPwd.length < 8) { showToast('Le nouveau mot de passe doit faire au moins 8 caractères'); return; }
+      if (!/[A-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) { showToast('Le mot de passe doit contenir une majuscule et un chiffre'); return; }
+      if (newPwd !== confirmPwd) { showToast('Les mots de passe ne correspondent pas'); return; }
 
       const users = getUsers();
       const idx = users.findIndex(u => u.email === user.email);
-      if (idx !== -1) { users[idx].password = newPwd; saveUsers(users); }
+      if (idx !== -1) {
+        users[idx].passwordHash = await hashPassword(newPwd);
+        delete users[idx].password; // Remove any legacy plaintext
+        saveUsers(users);
+      }
 
       document.getElementById('currentPwd').value = '';
       document.getElementById('newPwd').value = '';

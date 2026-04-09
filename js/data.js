@@ -2,7 +2,183 @@
    HOLOFOIL — TCGdex API Service
    ═══════════════════════════════════════ */
 
+// ─── SECURITY: SHA-256 Hashing ───
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + '_holofoil_salt_2024');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Synchronous hash check helper (compares input with stored hash)
+async function verifyPassword(input, storedHash) {
+  const inputHash = await hashPassword(input);
+  // Constant-time comparison to prevent timing attacks
+  if (inputHash.length !== storedHash.length) return false;
+  let result = 0;
+  for (let i = 0; i < inputHash.length; i++) {
+    result |= inputHash.charCodeAt(i) ^ storedHash.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+// ─── SECURITY: HTML Sanitization ───
+function sanitizeHTML(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+// ─── SECURITY: Rate Limiting ───
+const _loginAttempts = {};
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(email) {
+  const key = email.toLowerCase();
+  const record = _loginAttempts[key];
+  if (!record) return { allowed: true };
+  if (record.lockedUntil && Date.now() < record.lockedUntil) {
+    const remaining = Math.ceil((record.lockedUntil - Date.now()) / 60000);
+    return { allowed: false, remaining };
+  }
+  if (record.lockedUntil && Date.now() >= record.lockedUntil) {
+    delete _loginAttempts[key];
+    return { allowed: true };
+  }
+  return { allowed: true };
+}
+
+function recordLoginFailure(email) {
+  const key = email.toLowerCase();
+  if (!_loginAttempts[key]) _loginAttempts[key] = { count: 0 };
+  _loginAttempts[key].count++;
+  if (_loginAttempts[key].count >= MAX_LOGIN_ATTEMPTS) {
+    _loginAttempts[key].lockedUntil = Date.now() + LOCKOUT_DURATION;
+  }
+}
+
+function clearLoginFailures(email) {
+  delete _loginAttempts[email.toLowerCase()];
+}
+
+// ─── SECURITY: Session validation ───
+const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+
+function isSessionValid(session) {
+  if (!session || !session.email || !session.ts) return false;
+  return (Date.now() - session.ts) < SESSION_MAX_AGE;
+}
+
 const API_BASE = 'https://api.tcgdex.net/v2/fr';
+
+// ─── SET NAME TRANSLATIONS (JA → EN, ZH → EN) ───
+const JA_SET_FR = {
+  '拡張パック': 'Expansion Pack', 'ポケモンジャングル': 'Jungle', '化石の秘密': 'Fossil',
+  'ロケット団': 'Team Rocket', 'リーダーズスタジアム': 'Gym Heroes', '闇からの挑戦': 'Gym Challenge',
+  '金、銀、新世界へ...': 'Neo Genesis', '遺跡をこえて...': 'Neo Discovery', 'めざめる伝説': 'Neo Revelation',
+  '闇、そして光へ...': 'Neo Destiny', 'ポケモンカード★VS': 'Pokémon Card VS', 'ポケモンカード★web': 'Pokémon Card Web',
+  '基本拡張パック': 'Base Expansion Pack', '地図にない町': 'The Town on No Map', '海からの風': 'Wind from the Sea',
+  '裂けた大地': 'Split Earth', '神秘なる山': 'Mysterious Mountains',
+  '砂漠のきせき': 'Sandstorm', '天空の覇者': 'Ruler of the Heavens',
+  '強化拡張パックex1マグマVSアクア ふたつの野望': 'Magma VS Aqua: Two Ambitions', 'とかれた封印': 'Undone Seal',
+  '伝説の飛翔': 'Flight of Legends', '蒼空の激突': 'Clash of the Blue Sky',
+  'ロケット団の逆襲': 'Team Rocket Returns', '金の空、銀の海': 'Golden Sky, Silvery Ocean',
+  'まぼろしの森': 'Mirage Forest', 'ホロンの研究塔': 'Holon Research Tower',
+  'ホロンの幻影': 'Holon Phantom', 'きせきの結晶': 'Miracle Crystal',
+  'さいはての攻防': 'Offense and Defense of the Furthest Ends', 'ワールドチャンピオンズパック': 'World Champions Pack',
+  'ソウルシルバーコレクション': 'SoulSilver Collection', 'ハートゴールドコレクション': 'HeartGold Collection',
+  'よみがえる伝説': 'Reviving Legends', '強化パック ロストリンク': 'Lost Link', '頂上大激突': 'Clash at the Summit',
+  'コレクションX': 'Collection X', 'コレクションY': 'Collection Y', 'ワイルドブレイズ': 'Wild Blaze',
+  'ライジングフィスト': 'Rising Fist', 'ファントムゲート': 'Phantom Gate',
+  'タイダルストーム': 'Tidal Storm', 'ガイアボルケーノ': 'Gaia Volcano',
+  'マグマ団VSアクア団 ダブルクライシス': 'Magma VS Aqua Double Crisis', 'エメラルドブレイク': 'Emerald Break',
+  'バンデットリング': 'Bandit Ring', '伝説キラコレクション': 'Legendary Shine Collection',
+  '赤い閃光': 'Red Flash', '青い衝撃': 'Blue Shock', '破天の怒り': 'Rage of the Broken Heavens',
+  'ポケキュンコレクション': 'Poké Kyun Collection', 'めざめる超王': 'Awakening Psychic King',
+  'プレミアムチャンピオンパック EX×M×BREAK': 'Premium Champion Pack EX×M×BREAK',
+  '冷酷の反逆者': 'Cruel Traitor', 'ポケットモンスターカードゲーム 拡張パック 20th Anniversary': 'Expansion Pack 20th Anniversary',
+  'ピカチュウと新しい仲間たち': 'Pikachu & New Friends',
+  'コレクションサン': 'Collection Sun', 'コレクションムーン': 'Collection Moon', 'サン＆ムーン': 'Sun & Moon',
+  'キミを待つ島々': 'Islands Await You', 'アローラの月光': 'Alolan Moonlight',
+  '新たなる試練の向こう': 'Beyond a New Trial', '光を喰らう闇': 'Darkness that Consumes Light',
+  '闘う虹を見たか': 'To Have Seen the Battle Rainbow', 'ひかる伝説': 'Shining Legends',
+  '超次元の暴獣': 'Ultra Beast', '覚醒の勇者': 'Awakened Heroes', 'GXバトルブースト': 'GX Battle Boost',
+  'ウルトラムーン': 'Ultra Moon', 'ウルトラサン': 'Ultra Sun', 'ウルトラフォース': 'Ultra Force',
+  '禁断の光': 'Forbidden Light', 'ドラゴンストーム': 'Dragon Storm', 'チャンピオンロード': 'Champion Road',
+  '裂空のカリスマ': 'Sky-Splitting Charisma', '迅雷スパーク': 'Thunderclap Spark',
+  'フェアリーライズ': 'Fairy Rise', '超爆インパクト': 'Super-Burst Impact', 'GXウルトラシャイニ': 'GX Ultra Shiny',
+  'ダークオーダー': 'Dark Order', 'タッグボルト': 'Tag Bolt', 'ナイトユニゾン': 'Night Unison',
+  'フルメタルウォール': 'Full Metal Wall', 'ダブルブレイズ': 'Double Blaze', 'ジージーエンド': 'GG End',
+  'スカイレジェンド': 'Sky Legend', '名探偵ピカチュウ': 'Detective Pikachu', 'ミラクルツイン': 'Miracle Twin',
+  'リミックスバウト': 'Remix Bout', 'ドリームリーグ': 'Dream League', 'オルタージェネシス': 'Alter Genesis',
+  'TAG TEAM GX タッグオールスターズ': 'TAG TEAM GX Tag All Stars',
+  'シールド': 'Shield', 'ソード': 'Sword', 'VMAXライジング': 'VMAX Rising', '反逆クラッシュ': 'Rebel Clash',
+  'ムゲンゾーン': 'Infinity Zone', '伝説の鼓動': 'Legendary Heartbeat', '仰天のボルテッカー': 'Amazing Volt Tackle',
+  'シャイニースターV': 'Shiny Star V', '一撃マスター': 'Single Strike Master', '連撃マスター': 'Rapid Strike Master',
+  '双璧のファイター': 'Matchless Fighters', '漆黒のガイスト': 'Jet-Black Geist', '白銀のランス': 'Silver Lance',
+  'イーブイヒーローズ': 'Eevee Heroes', '蒼空ストリーム': 'Blue Sky Stream', '摩天パーフェクト': 'Skyscraping Perfect',
+  'フュージョンアーツ': 'Fusion Arts', '25th アニバーサリーコレクション': '25th Anniversary Collection',
+  'VMAXクライマックス': 'VMAX Climax', 'スターバース': 'Star Birth', 'バトルリージョン': 'Battle Region',
+  'タイムゲイザー': 'Time Gazer', 'スペースジャグラー': 'Space Juggler', 'ダークファンタズマ': 'Dark Phantasma',
+  'Pokémon GO': 'Pokémon GO', 'トリプレットビート': 'Triplet Beat', '白熱のアルカナ': 'Incandescent Arcana',
+  'パラダイムトリガー': 'Paradigm Trigger', 'VSTARユニバース': 'VSTAR Universe',
+  'スカーレットex': 'Scarlet ex', 'バイオレットex': 'Violet ex', 'クレイバースト': 'Clay Burst',
+  'スノーハザード': 'Snow Hazard', 'ポケモンカード151': 'Pokémon Card 151',
+  '黒炎の支配者': 'Ruler of the Black Flame', 'レイジングサーフ': 'Raging Surf',
+  '古代の咆哮': 'Ancient Roar', '未来の一閃': 'Future Flash', 'ワイルドフォース': 'Wild Force',
+  'サイバージャッジ': 'Cyber Judge', 'クリムゾンヘイズ': 'Crimson Haze', '変幻の仮面': 'Mask of Change',
+  'ナイトワンダラー': 'Night Wanderer', 'ステラミラクル': 'Stellar Miracle', '楽園ドラゴーナ': 'Paradise Dragona',
+  '超電ブレイカー': 'Super Electric Breaker', 'テラスタルフェスex': 'Terastal Fest ex',
+  'バトルパートナーズ': 'Battle Partners', '熱風のアリーナ': 'Hot Wind Arena',
+  'ロケット団の栄光': 'Team Rocket\'s Glory', 'ホワイトフレア': 'White Flare',
+  'デッキビルドBOX ステラミラクル': 'Deck Build Box Stellar Miracle',
+  'スターターセット テラスタイプ：ステラ ソウブレイズex': 'Starter Terastal: Stellar Ceruledge ex',
+  'スターターセット テラスタイプ：ステラ ニンフィアex': 'Starter Terastal: Stellar Sylveon ex',
+};
+
+const ZH_SET_FR = {
+  '無極力量 SET B': 'Infinity Power SET B', '無極力量': 'Infinity Power', '無極力量 SET A': 'Infinity Power SET A',
+  '劍&盾 SET B': 'Sword & Shield SET B', '劍&盾': 'Sword & Shield', '劍&盾 SET A': 'Sword & Shield SET A',
+  '驚天伏特攻擊': 'Amazing Volt Tackle', '閃色明星V': 'Shiny Star V',
+  '一撃大師': 'Single Strike Master', '連撃大師': 'Rapid Strike Master', '雙璧戰士': 'Matchless Fighters',
+  '漆黑幽魂': 'Jet-Black Geist', '銀白戰槍': 'Silver Lance', '伊布英雄': 'Eevee Heroes',
+  '蒼空烈流': 'Blue Sky Stream', '摩天巔峰': 'Skyscraping Perfect', '匯流藝術': 'Fusion Arts',
+  '25週年收藏款': '25th Anniversary Collection', 'VMAX絕群壓軸': 'VMAX Climax',
+  '星星誕生': 'Star Birth', '對戰地區': 'Battle Region', '時間觀察者': 'Time Gazer',
+  '空間魔術師': 'Space Juggler', '黑暗亡靈': 'Dark Phantasma', 'Pokémon GO': 'Pokémon GO',
+  '三連音爆': 'Triplet Beat', '白熱奧祕': 'Incandescent Arcana', '思維激盪': 'Paradigm Trigger',
+  '天地萬物VSTAR': 'VSTAR Universe',
+  '朱ex': 'Scarlet ex', '紫ex': 'Violet ex', '碟旋暴擊': 'Clay Burst', '冰雪險境': 'Snow Hazard',
+  '寶可夢卡牌151': 'Pokémon Card 151', '黯焰支配者': 'Ruler of the Black Flame',
+  '激狂駭浪': 'Raging Surf', '古代咆哮': 'Ancient Roar', '未來閃光': 'Future Flash',
+  '閃色寶藏ex': 'Shiny Treasure ex', '狂野之力': 'Wild Force', '異度審判': 'Cyber Judge',
+  '緋紅薄霧': 'Crimson Haze', '變幻假面': 'Mask of Change', '黑夜漫遊者': 'Night Wanderer',
+  '星晶奇跡': 'Stellar Miracle', '樂園騰龍': 'Paradise Dragona', '超電突圍': 'Super Electric Breaker',
+  '太晶慶典ex': 'Terastal Fest ex', '對戰搭檔': 'Battle Partners', '熱風競技場': 'Hot Wind Arena',
+  '火箭隊的榮耀': 'Team Rocket\'s Glory', '特典卡 朱&紫': 'Scarlet & Violet Promos',
+  '骨紋巨聲鱷ex': 'Skeledirge ex', '起始組合ex 潤水鴨&謎擬Ｑ ex': 'Starter ex Quaquaval & Mimikyu ex',
+  '頂級訓練家收藏箱ex': 'Top Trainer Box ex', 'ex特別組合': 'Special ex Combo',
+  '未來密勒頓ex': 'Miraidon ex', 'ex初階牌組': 'Starter Deck ex',
+  '起始組合ex 呆火鱷&電龍 ex': 'Starter ex Fuecoco & Ampharos ex',
+  '皮卡丘特別組合': 'Special Pikachu Combo', '超夢ex': 'Mewtwo ex',
+  '起始組合ex 新葉喵&路卡利歐 ex': 'Starter ex Sprigatito & Lucario ex',
+  '起始組合VSTAR 達克萊伊': 'Starter VSTAR Darkrai', '起始組合VSTAR 路卡利歐': 'Starter VSTAR Lucario',
+  '噴火龍': 'Charizard', '進化': 'Evolution', '超夢': 'Mewtwo',
+  '頂級訓練家收藏箱 VSTAR': 'Top Trainer Box VSTAR', '寶可夢卡牌家庭組合': 'Pokémon Card Family Combo',
+  '初階牌組100': 'Starter Deck 100', '搭檔': 'Partner', '挑戰': 'Challenge',
+  'VSTAR特別組合': 'Special VSTAR Combo',
+  'VSTAR&VMAX 高級牌組 捷拉奧拉': 'Premium Deck VSTAR & VMAX Zeraora',
+  '強大': 'Powerful', '藏瑪然特VS無極汰那': 'Zamazenta VS Eternatus',
+  'VSTAR&VMAX 高級牌組 代歐奇希斯': 'Premium Deck VSTAR & VMAX Deoxys',
+  '初階牌組100 特別版': 'Starter Deck 100 Special Edition', '皮卡丘': 'Pikachu',
+};
+
+function translateSetName(name, origin) {
+  if (!name) return '';
+  if (origin === 'JA' || origin === 'ja') return JA_SET_FR[name] || name;
+  if (origin === 'CN' || origin === 'TW' || origin === 'zh' || origin === 'zh-tw') return ZH_SET_FR[name] || name;
+  return name;
+}
 
 const TCGdex = {
 
@@ -169,13 +345,13 @@ function buildListingHTML(listing) {
         ${listing.image ? `<img src="${listing.image}" alt="${listing.name}" loading="lazy" style="width:100%;height:100%;object-fit:${objectFit};position:absolute;inset:0;">` : `
         <div class="card-visual">
           <div class="card-bg" style="background:linear-gradient(135deg,#2a2a3e,#1a1a2e)"></div>
-          <div class="card-name-overlay">${listing.name}</div>
+          <div class="card-name-overlay">${sanitizeHTML(listing.name)}</div>
         </div>`}
         <div class="holo-sheen"></div>
       </div>
       <div class="poke-card-info">
-        <div class="poke-card-set">${listing.set || ''}</div>
-        <div class="poke-card-name">${listing.name}</div>
+        <div class="poke-card-set">${translateSetName(listing.set || '', listing.origin || 'FR')}</div>
+        <div class="poke-card-name">${sanitizeHTML(listing.name)}</div>
         <div class="poke-card-rarity">
           ${isCard ? `${listing.rarity || ''} <span class="condition-badge condition-${cc}">${listing.condition}</span>` : `<span style="color:${typeColor};font-weight:600;">${type}</span>`}
         </div>
@@ -415,8 +591,8 @@ function openListingDetail(index) {
         <!-- Header -->
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:24px;">
           <div style="flex:1;">
-            ${listing.set ? `<div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--holo-1);margin-bottom:8px;">${listing.set}</div>` : ''}
-            <h2 style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;line-height:1.3;">${listing.name}</h2>
+            ${listing.set ? `<div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--holo-1);margin-bottom:8px;">${translateSetName(listing.set, listing.origin || 'FR')}</div>` : ''}
+            <h2 style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;line-height:1.3;">${sanitizeHTML(listing.name)}</h2>
           </div>
           <button onclick="document.getElementById('listingModal').remove()" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:none;color:var(--text-primary);cursor:pointer;font-size:1.1rem;flex-shrink:0;margin-left:12px;">✕</button>
         </div>

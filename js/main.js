@@ -110,6 +110,29 @@ function renderCartItems() {
   const totalEl = document.getElementById('cartTotalPrice');
   if (!container) return;
 
+  // Remove out-of-stock items automatically
+  const listings = JSON.parse(localStorage.getItem('holofoil_listings') || '[]');
+  const removed = [];
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const item = cart[i];
+    const match = listings.find(l => l.name === item.name);
+    if (match) {
+      const isCard = (match.type || 'Carte') === 'Carte';
+      const outOfStock = match.inStock === false || (!isCard && (match.stockQty || 0) <= 0);
+      if (outOfStock) {
+        if (!removed.includes(item.name)) removed.push(item.name);
+        cart.splice(i, 1);
+      }
+    }
+  }
+  if (removed.length > 0) {
+    saveCart();
+    updateCartCount();
+    if (typeof showToast === 'function') {
+      removed.forEach(n => showToast(`${n} retiré du panier (hors stock)`, 'error'));
+    }
+  }
+
   if (cart.length === 0) {
     container.innerHTML = `
       <div class="cart-empty">
@@ -163,6 +186,18 @@ function renderCartItems() {
   const total = cart.reduce((s, c) => s + (c.price || 0), 0);
   const discountEl = document.getElementById('promoDiscount');
   const statusEl = document.getElementById('promoStatus');
+
+  // Re-validate promo code (may have been deleted/deactivated by admin)
+  if (appliedPromo) {
+    const codes = getPromoCodes();
+    const still = codes.find(c => c.code?.toUpperCase() === appliedPromo.code.toUpperCase() && c.active !== false);
+    if (!still) {
+      appliedPromo = null;
+      if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;font-size:0.78rem;">✕ Code expiré ou supprimé</span>`;
+    } else if (still.percent !== appliedPromo.percent) {
+      appliedPromo.percent = still.percent;
+    }
+  }
 
   if (appliedPromo && discountEl) {
     const discount = total * (appliedPromo.percent / 100);
