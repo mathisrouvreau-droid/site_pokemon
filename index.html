@@ -152,129 +152,28 @@
     }
     setInterval(nextAnnouncement, 5000);
 
-    // ─── MOSAIC (curated cards — mix FR/JA, ex/V/VMAX/Prime/Niv.X/SAR) ───
+    // ─── MOSAIC (curated cards — images locales pré-téléchargées) ───
     function buildMosaic() {
       const mosaic = document.getElementById('cardsMosaic');
       const ROWS = 4;
+      const COLS = 10;
       const speeds = [50, 65, 45, 58];
 
-      // 4 rangées — 40 cartes demandées, IDs TCGdex vérifiés
-      const rows = [
-        [ // Rangée 0
-          { id: 'SV10-039', l: 'ja' },      // Mewtwo ex Team Rocket Alt
-          { id: 'sv03-205', l: 'fr' },      // Cizayox AR (échangé avec Superdofin)
-          { id: 'ex13-104', l: 'en' },      // Pikachu Gold Star
-          { id: 'xyp-XY166', l: 'en' },     // Méga Ectoplasma EX Shiny
-          { id: 'sv10.5w-027', l: 'fr' },   // Sorbébé (échangé avec Giratina)
-          { id: 'swsh9-154', l: 'fr' },     // Dracaufeu V Alternative
-          { id: 's12a-262', l: 'ja' },      // Arceus VSTAR Universe
-          { id: 'swsh7-192', l: 'fr' },     // Dracolosse V Alternative
-          { id: 'xy3-113', l: 'fr' },       // Méga Lucario EX Full Art
-          { id: 'ex7-107', l: 'en' },       // Gobou Gold Star
-        ],
-        [ // Rangée 1
-          { id: 'sv4M-074', l: 'ja' },      // Steelix AR
-          { id: 'me02.5-286', l: 'en' },    // N's Zoroark ex
-          { id: 'swsh11-TG04', l: 'fr' },   // Lugulabre TG04
-          { id: 'sv04.5-233', l: 'fr' },    // Gardevoir ex Destinées de Paldéa
-          { id: 'swsh12-TG17', l: 'fr' },   // Mysdibule V TG17
-          { id: 'xy6-100', l: 'fr' },       // Méga Gallame EX Full Art
-          { id: 'sv8a-207', l: 'ja' },      // Superdofin ex 207/187 (échangé avec Cizayox)
-          { id: 'swsh12-TG19', l: 'fr' },   // Corvaillus VMAX TG19
-          { id: 'hgss1-105', l: 'fr' },     // Pharamp Prime
-          { id: 'sv08-237', l: 'fr' },      // Milobellus ex SAR
-        ],
-        [ // Rangée 2
-          { id: 'dp19-DP19', l: 'en' },     // Darkrai Niv.X DP19 (remplace Libégon)
-          { id: 'swsh11-186', l: 'fr' },    // Giratina V Alternative (échangé avec Sorbébé)
-          { id: 'sm11-35', l: 'fr' },       // Ramoloss et Psykokwak GX
-          { id: 'swsh12-186', l: 'fr' },    // Lugia V Alt Tempête Argentée
-          { id: 'xy7-104', l: 'fr' },       // Rayquaza ex Full Art 104/108 Ciel Rugissant (remplace VMAX Alt)
-          { id: 'cel25-11', l: 'en' },      // Mew (Celebrations)
-          { id: 'svp-132', l: 'fr' },       // Amphinobi ex Promo
-          { id: 'ex11-113', l: 'en' },      // Métalosse Gold Star
-          { id: 'swsh7-215', l: 'fr' },     // Noctali VMAX Alt Évolution Céleste
-          { id: 'ex10-117', l: 'en' },      // Celebi ex Force Cachées (échangé avec Ronflex)
-        ],
-        [ // Rangée 3
-          { id: 'xy2-108', l: 'fr' },       // Méga Dracaufeu X
-          { id: 'hgss3-82', l: 'fr' },      // Démolosse Prime
-          { id: 'bw1-113', l: 'fr' },       // Reshiram Full Art Noir et Blanc
-          { id: 'svp-174', l: 'fr' },       // Évoli ex Promo
-          { id: 'sv4a-088', l: 'ja' },      // Mimiqui AR
-          { id: 'dc1-15', l: 'en' },        // Groudon ex Team Magma
-          { id: 'pl3-101', l: 'fr' },       // Cradopaud
-          { id: 'sm12-38', l: 'fr' },       // Tiplouf et Tortank GX
-          { id: 'ex15-10', l: 'fr' },       // Ronflex Espèce Delta (échangé avec Celebi ex)
-          { id: 'dp6-141', l: 'en' },       // Scorvol Niv.X (Gliscor LV.X)
-        ],
-      ];
-
-      // Placeholder immédiat (pas de trou)
-      const ph = `<div class="mosaic-card"><div class="mc-inner" style="background:linear-gradient(135deg,#1a1a2e,#2a2a4e);"></div></div>`;
-      let placeholderHtml = '';
+      let html = '';
       for (let r = 0; r < ROWS; r++) {
-        const row = ph.repeat(10).repeat(4);
-        placeholderHtml += `<div class="mosaic-row" style="--row-speed:${speeds[r]}s;">${row}</div>`;
-      }
-      mosaic.innerHTML = placeholderHtml;
-
-      // Cache des URLs d'images (localStorage, TTL 24h)
-      const MOSAIC_CACHE_KEY = 'holofoil_mosaic_cache_v2';
-      const MOSAIC_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
-
-      function getMosaicCache() {
-        try {
-          const cached = JSON.parse(localStorage.getItem(MOSAIC_CACHE_KEY));
-          if (cached && Date.now() - cached.ts < MOSAIC_CACHE_TTL) return cached.data;
-        } catch(e) {}
-        return null;
-      }
-
-      function setMosaicCache(data) {
-        try {
-          localStorage.setItem(MOSAIC_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
-        } catch(e) {}
-      }
-
-      function renderMosaic(allRows) {
-        let html = '';
-        for (let r = 0; r < ROWS; r++) {
-          const urls = allRows[r].filter(Boolean);
-          const cardsHtml = urls.map(url => `
+        let cardsHtml = '';
+        for (let c = 0; c < COLS; c++) {
+          cardsHtml += `
             <div class="mosaic-card">
               <div class="mc-inner" style="background:linear-gradient(135deg,#1a1a2e,#2a2a4e);">
-                <img src="${url}" alt="" loading="eager">
+                <img src="img/mosaic/r${r}_c${c}.webp" alt="" loading="eager">
               </div>
-            </div>`).join('');
-          const repeat = cardsHtml.repeat(4);
-          html += `<div class="mosaic-row" style="--row-speed:${speeds[r]}s;">${repeat}</div>`;
+            </div>`;
         }
-        mosaic.innerHTML = html;
-        if (typeof initHoloReflections === 'function') setTimeout(initHoloReflections, 500);
+        html += `<div class="mosaic-row" style="--row-speed:${speeds[r]}s;">${cardsHtml.repeat(4)}</div>`;
       }
-
-      // Utiliser le cache si disponible
-      const cached = getMosaicCache();
-      if (cached) {
-        renderMosaic(cached);
-      } else {
-        // Fetch chaque carte par ID avec langue appropriée + fallbacks
-        async function fetchCard(id, preferLang) {
-          for (const lang of [preferLang, 'fr', 'en', 'ja'].filter((v,i,a) => a.indexOf(v)===i)) {
-            try {
-              const r = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${id}`);
-              if (r.ok) { const c = await r.json(); if (c.image) return c.image + '/low.webp'; }
-            } catch(e) {}
-          }
-          return null;
-        }
-
-        Promise.all(rows.map(row => Promise.all(row.map(c => fetchCard(c.id, c.l))))).then(allRows => {
-          setMosaicCache(allRows);
-          renderMosaic(allRows);
-        });
-      }
+      mosaic.innerHTML = html;
+      if (typeof initHoloReflections === 'function') setTimeout(initHoloReflections, 500);
     }
 
     // ─── MARQUEE ───

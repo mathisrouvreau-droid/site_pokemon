@@ -10,7 +10,8 @@ service cloud.firestore {
     // Listings — lecture publique, écriture admin seulement
     match /listings/{doc} {
       allow read: if true;
-      allow write: if isAdmin()
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin()
         && request.resource.data.keys().hasAll(['name', 'price'])
         && request.resource.data.name is string
         && request.resource.data.price is number
@@ -53,10 +54,12 @@ service cloud.firestore {
         && !request.resource.data.keys().hasAny(['role', 'isAdmin', 'admin']);
     }
 
-    // Admins — lecture admin, écriture admin seulement
-    match /admins/{doc} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
+    // Admins — un admin peut gérer les autres admins
+    // Un utilisateur authentifié peut créer son propre doc admin (bootstrap)
+    match /admins/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId || isAdmin();
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if isAdmin();
     }
 
     // Wishlist

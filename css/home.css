@@ -252,8 +252,10 @@
 }
 .trust-bar-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 32px;
+  max-width: 900px;
+  margin: 0 auto;
 }
 .trust-bar-item {
   text-align: center;

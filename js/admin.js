@@ -144,12 +144,69 @@ async function attemptLogin() {
 
   clearLoginFailures(email);
   errorEl.classList.remove('visible');
+
+  // Sign into Firebase Auth so Firestore rules work
+  await firebaseAdminSignIn(email, password);
+
   setSession(matchedAdmin.email);
   showDashboard();
 }
 
+// Firebase Auth sign-in for admin
+// Try email/password first, fall back to anonymous auth
+async function firebaseAdminSignIn(email, password) {
+  if (!FIREBASE_READY || typeof auth === 'undefined') return;
+  try {
+    // If already signed in, just ensure admin doc
+    if (auth.currentUser) {
+      await ensureAdminDoc(auth.currentUser.uid, email);
+      return;
+    }
+
+    // Try email/password sign-in
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      await ensureAdminDoc(cred.user.uid, email);
+      console.info('[Holofoil] Admin connecté via Firebase Auth (email/password)');
+      return;
+    } catch (e) {
+      if (e.code === 'auth/user-not-found') {
+        // Account doesn't exist — create it
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        await ensureAdminDoc(cred.user.uid, email);
+        console.info('[Holofoil] Admin créé + connecté via Firebase Auth');
+        return;
+      }
+      // Password mismatch or other error — fall through to anonymous
+      console.warn('[Holofoil] Email/password auth failed, fallback anonymous:', e.code);
+    }
+
+    // Fallback: anonymous sign-in
+    const cred = await auth.signInAnonymously();
+    await ensureAdminDoc(cred.user.uid, email);
+    console.info('[Holofoil] Admin connecté via Firebase Auth (anonymous)');
+  } catch (e) {
+    console.warn('[Holofoil] Firebase Auth admin sign-in failed:', e.message);
+  }
+}
+
+async function ensureAdminDoc(uid, email) {
+  try {
+    const docRef = db.collection('admins').doc(uid);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      await docRef.set({ email, role: 'owner', createdAt: Date.now() });
+    }
+  } catch (e) {
+    console.warn('[Holofoil] Admin doc creation failed:', e.message);
+  }
+}
+
 function logout() {
   clearSession();
+  if (FIREBASE_READY && typeof auth !== 'undefined') {
+    auth.signOut().catch(() => {});
+  }
   location.reload();
 }
 
@@ -2602,6 +2659,9 @@ function saveCard() {
     if (old && (old.stockQty || 0) <= 0 && listing.stockQty > 0) {
       restockedProduct = listing.name;
     }
+    // Preserve Firestore doc ID for sync
+    if (old && old._id) listing._id = old._id;
+    if (old && old.createdAt) listing.createdAt = old.createdAt;
     listings[editingId] = listing;
   } else {
     listings.unshift(listing);
@@ -3702,10 +3762,11 @@ document.addEventListener('DOMContentLoaded', () => {
   getAdmins(); // Ensure default admin
   const session = getSession();
   if (session) {
-    // Verify session is still valid
     const admins = getAdmins();
     if (admins.find(a => a.email === session.email)) {
       showDashboard();
+      // Ensure Firebase Auth is signed in (async — needed for Firestore writes)
+      ensureFirebaseAuth(session.email);
       return;
     }
     clearSession();
@@ -3713,3 +3774,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show login
   document.getElementById('loginPage').style.display = '';
 });
+
+// Ensure Firebase Auth is signed in when restoring a localStorage session
+function ensureFirebaseAuth(email) {
+  if (!FIREBASE_READY || typeof auth === 'undefined') return;
+  // Wait for Firebase Auth to finish initializing (one-time check)
+  const unsubscribe = auth.onAuthStateChanged(user => {
+    unsubscribe();
+    if (user) {
+      // Already signed in — ensure admins/{uid} doc exists
+      const uid = user.uid;
+      db.collection('admins').doc(uid).get().then(doc => {
+        if (!doc.exists) {
+          db.collection('admins').doc(uid).set({ email: user.email, role: 'owner', createdAt: Date.now() }).catch(() => {});
+        }
+      }).catch(() => {});
+    } else {
+      // Firebase Auth not signed in — force re-login by clearing session
+      console.warn('[Holofoil] Firebase Auth non connecté — reconnexion requise.');
+      clearSession();
+      location.reload();
+    }
+  });
+}

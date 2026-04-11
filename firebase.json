@@ -9,7 +9,8 @@
       ".git/**",
       "README.md",
       "firestore.rules",
-      "functions/**"
+      "functions/**",
+      "scripts/**"
     ],
     "headers": [
       {

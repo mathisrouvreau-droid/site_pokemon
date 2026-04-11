@@ -326,10 +326,8 @@ const DB = {
   async syncToLocal() {
     if (!FIREBASE_READY) return;
     try {
-      // Listings
-      const snap = await db.collection('listings').orderBy('createdAt', 'desc').get();
-      const listings = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-      localStorage.setItem('holofoil_listings', JSON.stringify(listings));
+      // Listings — use real-time listener for live updates
+      DB.listenListings();
 
       // Promo codes
       const promoSnap = await db.collection('promo_codes').get();
@@ -357,22 +355,63 @@ const DB = {
     }
   },
 
+  // ═══ REAL-TIME LISTENER for listings ═══
+  _listingsUnsubscribe: null,
+
+  listenListings() {
+    if (!FIREBASE_READY) return;
+    // Don't create duplicate listeners
+    if (DB._listingsUnsubscribe) return;
+
+    DB._listingsUnsubscribe = db.collection('listings')
+      .orderBy('createdAt', 'desc')
+      .onSnapshot(snap => {
+        const listings = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+        localStorage.setItem('holofoil_listings', JSON.stringify(listings));
+        window.dispatchEvent(new Event('holofoil-synced'));
+      }, err => {
+        console.warn('[Holofoil] Listings listener error:', err.message);
+      });
+  },
+
   // ═══ PUSH localStorage → Firestore ═══
   // Appelé après chaque modification admin pour propager les changements
+  // Sync intelligente : met à jour/crée/supprime au lieu de tout réécrire
   async pushListings() {
     if (!FIREBASE_READY) return;
     try {
       const listings = JSON.parse(localStorage.getItem('holofoil_listings') || '[]');
-      // Get existing docs
       const existing = await db.collection('listings').get();
       const batch = db.batch();
-      existing.docs.forEach(d => batch.delete(d.ref));
+
+      // Build a set of local _id values that exist in localStorage
+      const localIds = new Set(listings.filter(l => l._id).map(l => l._id));
+
+      // Delete Firestore docs that are no longer in localStorage
+      existing.docs.forEach(d => {
+        if (!localIds.has(d.id)) batch.delete(d.ref);
+      });
+
+      // Build map of existing Firestore docs for comparison
+      const firestoreMap = new Map();
+      existing.docs.forEach(d => firestoreMap.set(d.id, d.data()));
+
+      // Update existing or add new listings
       listings.forEach(l => {
         const data = { ...l };
+        const id = data._id;
         delete data._id;
         if (!data.createdAt) data.createdAt = Date.now();
-        batch.set(db.collection('listings').doc(), data);
+
+        if (id && firestoreMap.has(id)) {
+          // Existing doc → update
+          batch.set(db.collection('listings').doc(id), data);
+        } else {
+          // New doc → create
+          batch.set(db.collection('listings').doc(), data);
+        }
       });
+
       await batch.commit();
     } catch (e) {
       console.warn('[Holofoil] Push listings to Firestore failed:', e.message);
@@ -420,9 +459,7 @@ const DB = {
 };
 
 // ═══ AUTO-SYNC on page load ═══
+// listenListings() sets up onSnapshot which dispatches 'holofoil-synced' on every change
 if (typeof FIREBASE_READY !== 'undefined' && FIREBASE_READY) {
-  DB.syncToLocal().then(() => {
-    // Dispatch event so pages can react when sync is complete
-    window.dispatchEvent(new Event('holofoil-synced'));
-  });
+  DB.syncToLocal();
 }
