@@ -56,7 +56,10 @@
       "Bash(node -e \":*)",
       "Bash(npx firebase:*)",
       "Bash(grep:*)",
-      "WebFetch(domain:api.tcgdex.net)"
+      "WebFetch(domain:api.tcgdex.net)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(d.get\\('id',''\\),d.get\\('name',''\\)\\) for d in data[:20]]\")",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\(d.get\\('name',''\\),d.get\\('image',''\\)\\)\" echo \"---\")",
+      "Bash(python3 -c \"import sys,json;data=json.load\\(sys.stdin\\);[print\\(d.get\\('id',''\\),d.get\\('name',''\\)\\) for d in data if 'ex' in d.get\\('name',''\\).lower\\(\\) or 'EX' in d.get\\('name',''\\)]\")"
     ]
   }
 }
